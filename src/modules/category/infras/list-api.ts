@@ -1,15 +1,8 @@
 import { Request, Response } from "express";
 import { CategoryPersistence } from "./repository/dto";
-import z from "zod";
-import { where } from "sequelize";
+import { PagingDTO, PagingDTOSchema } from "../../../share/model/paging";
 
-const PagingDTOSchema = z.object({
-    page: z.coerce.number().int().min(1).default(1), // (coerce) cho phep auto cast tu string sang number 
-    limit: z.coerce.number().int().min(1).max(100).default(10),
-    total: z.coerce.number().int().min(0).default(0).optional(),
-});
 
-type PagingDTO = z.infer<typeof PagingDTOSchema>;
 
 export const listCategoryApi = async (req: Request, res: Response) => {
     const { success, data } = PagingDTOSchema.safeParse(req.query)

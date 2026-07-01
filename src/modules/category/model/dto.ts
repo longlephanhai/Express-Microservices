@@ -1,5 +1,5 @@
 import z = require("zod");
-import { CategoryStatus } from "./model";
+import { ModelStatus } from "../../../share/model/base-model";
 
 
 
@@ -14,12 +14,19 @@ export type CategoryCreateDTO = z.infer<typeof CategoryCreateSchema>;
 
 
 export const CategoryUpdateSchema = z.object({
-    name: z.string().min(3, "Name is required and cannot be empty.").optional(),
+    name: z.string().min(2, "Name is required and cannot be empty.").optional(),
     image: z.string().nullable().optional(),
     description: z.string().max(255, "Description cannot exceed 255 characters.").nullable().optional(),
     parentId: z.string().uuid().nullable().optional(),
-    status: z.nativeEnum(CategoryStatus).optional(),
+    status: z.nativeEnum(ModelStatus).optional(),
 })
 
 export type CategoryUpdateDTO = z.infer<typeof CategoryUpdateSchema>;
 
+export const CategoryCondDTOSchema = z.object({
+    name: z.string().min(2, "Name is required and cannot be empty.").optional(),
+    parentId: z.string().uuid().optional(),
+    status: z.nativeEnum(ModelStatus).optional(),
+})
+
+export type CategoryCondDTO = z.infer<typeof CategoryCondDTOSchema>;
