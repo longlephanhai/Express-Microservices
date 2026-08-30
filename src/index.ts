@@ -1,7 +1,8 @@
 import express from "express";
 import { config } from "dotenv";
-import { setupCategoryModule } from "./modules/category";
+
 import { sequelize } from "./share/component/sequelize";
+import { setupCategoryHexagon } from "./modules/category";
 
 config();
 
@@ -18,7 +19,7 @@ config();
             res.send("Hello from Express + TypeScript!");
         });
 
-        app.use('/v1', setupCategoryModule(sequelize));
+        app.use('/v1', setupCategoryHexagon(sequelize));
 
 
 

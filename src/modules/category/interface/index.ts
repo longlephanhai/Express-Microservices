@@ -1,8 +1,14 @@
 import { PagingDTO } from "../../../share/model/paging";
-import { CategoryCondDTO, CategoryUpdateDTO } from "../model/dto";
+import { CategoryCondDTO, CategoryCreateDTO, CategoryUpdateDTO } from "../model/dto";
 import { Category } from "../model/model";
 
-export interface IUseCase { }
+export interface ICategoryUseCase {
+    createNewCategory(data: CategoryCreateDTO): Promise<string>;
+    getDetailCategory(id: string): Promise<Category | null>;
+    listCategories(cond: CategoryCondDTO, paging: PagingDTO): Promise<Category[]>;
+    updateCategory(id: string, data: CategoryUpdateDTO): Promise<boolean>;
+    deleteCategory(id: string): Promise<boolean>;
+}
 
 
 export interface IRepository extends IqueryRepository, ICommandRepository { }
@@ -13,7 +19,7 @@ export interface IqueryRepository {
 }
 
 export interface ICommandRepository {
-    insert(data: Category): Promise<void>;
+    insert(data: Category): Promise<boolean>;
     update(id: string, data: CategoryUpdateDTO): Promise<boolean>;
-    delete(id: string): Promise<boolean>;
+    delete(id: string, isHard: boolean): Promise<boolean>;
 }
