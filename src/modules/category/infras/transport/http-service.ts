@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { CategoryCondDTOSchema, CategoryCreateSchema } from "../../model/dto";
 import { ICategoryUseCase } from "../../interface";
 import { PagingDTOSchema } from "../../../../share/model/paging";
+import { Category } from "../../model/model";
 
 export class CategoryHttpServiceAPI {
     constructor(private readonly useCase: ICategoryUseCase) { }
@@ -73,16 +74,44 @@ export class CategoryHttpServiceAPI {
     }
 
     async listCategoriesAPI(req: Request, res: Response) {
-        const { success, data: paging, error } = PagingDTOSchema.safeParse(req.query);
+        // const { success, data: paging, error } = PagingDTOSchema.safeParse(req.query);
 
-        if (!success) {
-            return res.status(400).json({
-                error: error.message
-            });
+        // if (!success) {
+        //     return res.status(400).json({
+        //         error: error.message
+        //     });
+        // }
+
+        const paging = {
+            page: 1,
+            limit: 200
         }
 
         const cond = CategoryCondDTOSchema.parse(req.query);
         const result = await this.useCase.listCategories(cond, paging);
+
+        const categoriesTree: Category[] = [];
+        const mapChildren = new Map<string, Category[]>();
+
+        for (const category of result) {
+            if (!category) {
+                continue;
+            }
+
+            if (!mapChildren.get(category.id)) {
+                mapChildren.set(category.id, []);
+            }
+
+            category.children = mapChildren.get(category.id) ?? [];
+
+            if (!category.parentId) {
+                categoriesTree.push(category);
+            } else {
+                const children = mapChildren.get(category.parentId) ?? [];
+                children ? children.push(category) : mapChildren.set(category.parentId, [category]);
+            }
+        }
+
         res.status(200).json({
             data: result,
             paging,

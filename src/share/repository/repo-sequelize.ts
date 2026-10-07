@@ -1,15 +1,31 @@
 import { Op, Sequelize } from "sequelize";
-import { PagingDTO, PagingDTOSchema } from "../../../../share/model/paging";
-import { IRepository } from "../../interface";
-import { CategoryCondDTO, CategoryUpdateDTO } from "../../model/dto";
-import { Category, CategorySchema } from "../../model/model";
-import { ModelStatus } from "../../../../share/model/base-model";
+import { IRepository } from "../interface";
+import { PagingDTO } from "../model/paging";
+import { ModelStatus } from "../model/base-model";
 
-export class MySQLCategoryRepository implements IRepository {
+export abstract class BaseRepositorySequelize<Entity, CondDTO, UpdateDTO> implements IRepository<Entity, CondDTO, UpdateDTO> {
 
     constructor(private readonly sequelize: Sequelize, private readonly modelName: string) { }
 
-    async get(id: string): Promise<Category | null> {
+    async findByCond(cond: CondDTO): Promise<Entity | null> {
+        const model = this.sequelize.models[this.modelName];
+        if (!model) {
+            throw new Error(`Model ${this.modelName} not found`);
+        }
+        const data = await model.findOne({ where: cond as any });
+        if (!data) {
+            return null;
+        }
+
+        const plainData = data.get({ plain: true });
+        return ({
+            ...plainData,
+            createdAt: plainData.created_at,
+            updatedAt: plainData.updated_at,
+        }) as Entity;
+    }
+
+    async get(id: string): Promise<Entity | null> {
         const model = this.sequelize.models[this.modelName];
         if (!model) {
             throw new Error(`Model ${this.modelName} not found`);
@@ -20,15 +36,14 @@ export class MySQLCategoryRepository implements IRepository {
         }
 
         const plainData = data.get({ plain: true });
-        return CategorySchema.parse({
+        return ({
             ...plainData,
-            children: [],
             createdAt: plainData.created_at,
             updatedAt: plainData.updated_at,
-        });
+        }) as Entity;
     }
 
-    async list(cond: CategoryCondDTO, paging: PagingDTO): Promise<Category[]> {
+    async list(cond: CondDTO, paging: PagingDTO): Promise<Entity[]> {
         const { page, limit } = paging;
         const condSQL = { status: { [Op.ne]: ModelStatus.DELETED } };
         const model = this.sequelize.models[this.modelName];
@@ -44,29 +59,29 @@ export class MySQLCategoryRepository implements IRepository {
         });
         return rows.map(row => {
             const plainData = row.get({ plain: true });
-            return CategorySchema.parse({
+            return ({
                 ...plainData,
                 createdAt: plainData.created_at,
                 updatedAt: plainData.updated_at,
-            });
+            }) as Entity;
         });
     }
 
-    async insert(data: Category): Promise<boolean> {
+    async insert(data: Entity): Promise<boolean> {
         const model = this.sequelize.models[this.modelName];
         if (!model) {
             throw new Error(`Model ${this.modelName} not found`);
         }
-        await model.create(data);
+        await model.create(data as any);
         return true;
     }
 
-    async update(id: string, data: CategoryUpdateDTO): Promise<boolean> {
+    async update(id: string, data: UpdateDTO): Promise<boolean> {
         const model = this.sequelize.models[this.modelName];
         if (!model) {
             throw new Error(`Model ${this.modelName} not found`);
         }
-        await model.update(data, { where: { id } });
+        await model.update(data as any, { where: { id } });
         return true;
     }
 
@@ -83,4 +98,3 @@ export class MySQLCategoryRepository implements IRepository {
         return true;
     }
 }
-
