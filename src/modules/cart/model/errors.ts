@@ -1,0 +1,1 @@
+export const ErrCartItemNotFound = new Error("Cart item not found");

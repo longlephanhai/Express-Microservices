@@ -3,6 +3,7 @@ import { config } from "dotenv";
 
 import { sequelize } from "./share/component/sequelize";
 import { setupCategoryHexagon } from "./modules/category";
+import { setupCartHexagon } from "./modules/cart";
 import { setupBrandHexagon } from "./modules/brand";
 
 config();
@@ -21,6 +22,7 @@ config();
         });
 
         app.use('/v1', setupCategoryHexagon(sequelize));
+        app.use('/v1', setupCartHexagon(sequelize));
         app.use('/v1', setupBrandHexagon(sequelize));
 
 
