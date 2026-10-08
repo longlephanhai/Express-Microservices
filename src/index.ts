@@ -5,6 +5,7 @@ import { sequelize } from "./share/component/sequelize";
 import { setupCategoryHexagon } from "./modules/category";
 import { setupBrandHexagon } from "./modules/brand";
 import { setUpProductHexagon } from "./modules/product";
+import { setupSwagger } from "./docs/swagger";
 
 config();
 
@@ -17,6 +18,9 @@ config();
         const PORT = process.env.PORT || 3000;
         app.use(express.json());
 
+        // Setup Swagger UI
+        setupSwagger(app);
+
         app.get("/", (req: express.Request, res: express.Response) => {
             res.send("Hello from Express + TypeScript!");
         });
@@ -28,6 +32,7 @@ config();
 
         app.listen(PORT, () => {
             console.log(`Server is running at http://localhost:${PORT}`);
+            console.log(`Swagger Docs available at http://localhost:${PORT}/api-docs`);
         });
 
     } catch (error) {

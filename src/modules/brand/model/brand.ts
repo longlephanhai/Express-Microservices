@@ -1,4 +1,4 @@
-import { ModelStatus } from "@share/model/base-model";
+import { ModelStatus } from "../../../share/model/base-model";
 import { z } from "zod";
 import { ErrBrandNameTooShort } from "./errors";
 
