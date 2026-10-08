@@ -5,6 +5,7 @@ import { sequelize } from "./share/component/sequelize";
 import { setupCategoryHexagon } from "./modules/category";
 import { setupBrandHexagon } from "./modules/brand";
 import { setUpProductHexagon } from "./modules/product";
+import { RPCBrandQueryRepository, RPCCategoryQueryRepository } from "./modules/product/insfra/repository/rpc";
 import { setupSwagger } from "./docs/swagger";
 
 config();
@@ -25,9 +26,12 @@ config();
             res.send("Hello from Express + TypeScript!");
         });
 
+        const brandRpcRepo = new RPCBrandQueryRepository();
+        const categoryRpcRepo = new RPCCategoryQueryRepository();
+
         app.use('/v1', setupCategoryHexagon(sequelize));
         app.use('/v1', setupBrandHexagon(sequelize));
-        app.use('/v1', setUpProductHexagon(sequelize));
+        app.use('/v1', setUpProductHexagon(sequelize, brandRpcRepo, categoryRpcRepo));
 
 
         app.listen(PORT, () => {

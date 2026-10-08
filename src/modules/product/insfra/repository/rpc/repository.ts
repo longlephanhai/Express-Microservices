@@ -2,26 +2,33 @@ import axios from "axios";
 import { IBrandQueryRepository, ICategoryQueryRepository } from "../../../interface";
 import { ProductBrand, ProductBrandSchema, ProductCategory, ProductCategorySchema } from "../../../model/product";
 
-export class MySQLBrandQueryRepository implements IBrandQueryRepository {
+export class RPCBrandQueryRepository implements IBrandQueryRepository {
+    constructor(private readonly serviceUrl: string = process.env.BRAND_SERVICE_URL || "http://localhost:3000") {}
+
     async get(id: string): Promise<ProductBrand | null> {
         try {
-            const data = await axios.get(`http://localhost:3000/v1/brands/${id}`);
-            const brand = ProductBrandSchema.parse(data.data);
-            return brand;
+            const res = await axios.get(`${this.serviceUrl}/v1/brands/${id}`);
+            if (!res.data?.data) {
+                return null;
+            }
+            return ProductBrandSchema.parse(res.data.data);
         } catch (error) {
             return null;
         }
     }
 }
 
-export class MySQLCategoryQueryRepository implements ICategoryQueryRepository {
+export class RPCCategoryQueryRepository implements ICategoryQueryRepository {
+    constructor(private readonly serviceUrl: string = process.env.CATEGORY_SERVICE_URL || "http://localhost:3000") {}
+
     async get(id: string): Promise<ProductCategory | null> {
         try {
-            const { data } = await axios.get(`http://localhost:3000/v1/categories/${id}`);
-            const category = ProductCategorySchema.parse(data.data);
-            return category;
+            const res = await axios.get(`${this.serviceUrl}/v1/categories/${id}`);
+            if (!res.data?.data) {
+                return null;
+            }
+            return ProductCategorySchema.parse(res.data.data);
         } catch (error) {
-            console.error(error);
             return null;
         }
     }

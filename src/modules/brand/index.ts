@@ -35,11 +35,6 @@ export const setupBrandHexagon = (sequelize: Sequelize) => {
   router.get('/brands', httpService.listAPI.bind(httpService));
   router.patch('/brands/:id', httpService.updateAPI.bind(httpService));
   router.delete('/brands/:id', httpService.deleteAPI.bind(httpService));
-
-  router.post('/rpc/brands', (req: Request, res: Response) => {
-    const { ids } = req.body;
-    //...
-  });
-
+  
   return router;
 };

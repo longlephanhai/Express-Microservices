@@ -21,6 +21,14 @@
     "typescript": "^6.0.3"
   },
   "scripts": {
-    "start": "nodemon src/index.ts"
+    "dev": "nodemon src/index.ts",
+    "dev:gateway": "nodemon src/gateway/index.ts",
+    "dev:brand": "nodemon src/modules/brand/server.ts",
+    "dev:category": "nodemon src/modules/category/server.ts",
+    "dev:product": "nodemon src/modules/product/server.ts",
+    "build": "tsc",
+    "build:watch": "tsc -w",
+    "clean": "rm -rf dist",
+    "start": "node dist/index.js"
   }
 }

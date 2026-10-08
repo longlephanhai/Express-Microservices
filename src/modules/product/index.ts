@@ -1,18 +1,24 @@
 import { Sequelize } from "sequelize";
 import { init } from "./insfra/repository/mysql/dto";
 import { MySQLProductCommandRepository, MySQLProductQueryRepository } from "./insfra/repository/mysql/repository";
+import { RPCBrandQueryRepository, RPCCategoryQueryRepository } from "./insfra/repository/rpc";
+import { IBrandQueryRepository, ICategoryQueryRepository } from "./interface";
 import { ProductUseCase } from "./usecase";
 import { ProductCommandHTTPServiceAPI, ProductQueryHTTPServiceAPI } from "./insfra/transport/http-service";
 import { Router } from "express";
 
 
-export function setUpProductHexagon(sequelize: Sequelize) {
+export function setUpProductHexagon(
+    sequelize: Sequelize,
+    brandQueryRepo: IBrandQueryRepository,
+    categoryQueryRepo: ICategoryQueryRepository
+) {
     init(sequelize);
 
     const productQueryRepository = new MySQLProductQueryRepository(sequelize, "Product");
     const productCommandRepository = new MySQLProductCommandRepository(sequelize, "Product");
-    const productBrandRepository = new MySQLProductQueryRepository(sequelize, "Brand");
-    const productCategoryRepository = new MySQLProductQueryRepository(sequelize, "Category");
+    const productBrandRepository = brandQueryRepo;
+    const productCategoryRepository = categoryQueryRepo;
 
     const productUseCase = new ProductUseCase(productQueryRepository, productCommandRepository, productBrandRepository, productCategoryRepository);
 
