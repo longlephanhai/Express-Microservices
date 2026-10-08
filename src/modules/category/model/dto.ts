@@ -7,6 +7,7 @@ export const CategoryCreateSchema = z.object({
     name: z.string().min(3, "Name is required and cannot be empty."),
     image: z.string().nullable().optional(),
     description: z.string().nullable().optional(),
+    position: z.number().min(0).default(0),
     parentId: z.string().uuid().nullable().optional(),
 });
 
@@ -17,6 +18,7 @@ export const CategoryUpdateSchema = z.object({
     name: z.string().min(2, "Name is required and cannot be empty.").optional(),
     image: z.string().nullable().optional(),
     description: z.string().max(255, "Description cannot exceed 255 characters.").nullable().optional(),
+    position: z.number().min(0).optional(),
     parentId: z.string().uuid().nullable().optional(),
     status: z.nativeEnum(ModelStatus).optional(),
 })

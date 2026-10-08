@@ -1,100 +1,133 @@
+
+
 import { Op, Sequelize } from "sequelize";
-import { IRepository } from "../interface";
+import { ICommandRepository, IQueryRepository, IRepository } from "../interface";
 import { PagingDTO } from "../model/paging";
 import { ModelStatus } from "../model/base-model";
 
-export abstract class BaseRepositorySequelize<Entity, CondDTO, UpdateDTO> implements IRepository<Entity, CondDTO, UpdateDTO> {
+export abstract class BaseRepositorySequelize<Entity, Cond, UpdateDTO> implements IRepository<Entity, Cond, UpdateDTO> {
+  constructor(
+    readonly queryRepo: IQueryRepository<Entity, Cond>,
+    readonly cmdRepo: ICommandRepository<Entity, UpdateDTO>,
+  ) { }
 
-    constructor(private readonly sequelize: Sequelize, private readonly modelName: string) { }
+  async get(id: string): Promise<Entity | null> {
+    return await this.queryRepo.get(id);
+  }
 
-    async findByCond(cond: CondDTO): Promise<Entity | null> {
-        const model = this.sequelize.models[this.modelName];
-        if (!model) {
-            throw new Error(`Model ${this.modelName} not found`);
-        }
-        const data = await model.findOne({ where: cond as any });
-        if (!data) {
-            return null;
-        }
+  async findByCond(cond: Cond): Promise<Entity | null> {
+    return await this.queryRepo.findByCond(cond);
+  }
 
-        const plainData = data.get({ plain: true });
-        return ({
-            ...plainData,
-            createdAt: plainData.created_at,
-            updatedAt: plainData.updated_at,
-        }) as Entity;
+  async list(cond: Cond, paging: PagingDTO): Promise<Array<Entity>> {
+    return await this.queryRepo.list(cond, paging);
+  }
+
+  async insert(data: Entity): Promise<boolean> {
+    return await this.cmdRepo.insert(data);
+  }
+
+  async update(id: string, data: UpdateDTO): Promise<boolean> {
+    return await this.cmdRepo.update(id, data);
+  }
+
+  async delete(id: string, isHard: boolean): Promise<boolean> {
+    return await this.cmdRepo.delete(id, isHard);
+  }
+}
+
+export abstract class BaseQueryRepositorySequelize<Entity, Cond> implements IQueryRepository<Entity, Cond> {
+  constructor(readonly sequelize: Sequelize, readonly modelName: string) { }
+
+  protected getModel() {
+    const model = this.sequelize.models[this.modelName];
+
+    if (!model) {
+      throw new Error(`Model "${this.modelName}" was not found in the Sequelize registry.`);
     }
 
-    async get(id: string): Promise<Entity | null> {
-        const model = this.sequelize.models[this.modelName];
-        if (!model) {
-            throw new Error(`Model ${this.modelName} not found`);
-        }
-        const data = await model.findByPk(id);
-        if (!data) {
-            return null;
-        }
+    return model;
+  }
 
-        const plainData = data.get({ plain: true });
-        return ({
-            ...plainData,
-            createdAt: plainData.created_at,
-            updatedAt: plainData.updated_at,
-        }) as Entity;
+  async get(id: string): Promise<Entity | null> {
+    const model = this.getModel();
+    const data = await model.findByPk(id);
+
+    if (!data) {
+      return null;
     }
 
-    async list(cond: CondDTO, paging: PagingDTO): Promise<Entity[]> {
-        const { page, limit } = paging;
-        const condSQL = { status: { [Op.ne]: ModelStatus.DELETED } };
-        const model = this.sequelize.models[this.modelName];
-        if (!model) {
-            throw new Error(`Model ${this.modelName} not found`);
-        }
-        const total = await model.count({ where: condSQL });
-        paging.total = total;
-        const rows = await model.findAll({
-            where: condSQL,
-            offset: (page - 1) * limit,
-            limit: limit,
-        });
-        return rows.map(row => {
-            const plainData = row.get({ plain: true });
-            return ({
-                ...plainData,
-                createdAt: plainData.created_at,
-                updatedAt: plainData.updated_at,
-            }) as Entity;
-        });
+    const persistenceData = data.get({ plain: true });
+    const { created_at, updated_at, ...props } = persistenceData;
+
+    return {
+      ...props,
+      createdAt: persistenceData.created_at,
+      updatedAt: persistenceData.updated_at,
+    } as Entity;
+  }
+
+  async findByCond(cond: Cond): Promise<Entity | null> {
+    const model = this.getModel();
+    const data = await model.findOne({ where: cond as any });
+
+    if (!data) {
+      return null;
     }
 
-    async insert(data: Entity): Promise<boolean> {
-        const model = this.sequelize.models[this.modelName];
-        if (!model) {
-            throw new Error(`Model ${this.modelName} not found`);
-        }
-        await model.create(data as any);
-        return true;
+    const persistenceData = data.get({ plain: true });
+    return persistenceData as Entity;
+  }
+
+  async list(cond: Cond, paging: PagingDTO): Promise<Array<Entity>> {
+    const { page, limit } = paging;
+    const model = this.getModel();
+
+    const condSQL = { ...cond, status: { [Op.ne]: ModelStatus.DELETED } };
+
+    const total = await model.count({ where: condSQL });
+    paging.total = total;
+
+    const rows = await model.findAll({ where: condSQL, limit, offset: (page - 1) * limit, order: [['id', 'DESC']] });
+
+    return rows.map((row) => row.get({ plain: true }));
+  }
+}
+
+export abstract class BaseCommandRepositorySequelize<Entity, UpdateDTO> implements ICommandRepository<Entity, UpdateDTO> {
+  constructor(readonly sequelize: Sequelize, readonly modelName: string) { }
+
+  protected getModel() {
+    const model = this.sequelize.models[this.modelName];
+
+    if (!model) {
+      throw new Error(`Model "${this.modelName}" was not found in the Sequelize registry.`);
     }
 
-    async update(id: string, data: UpdateDTO): Promise<boolean> {
-        const model = this.sequelize.models[this.modelName];
-        if (!model) {
-            throw new Error(`Model ${this.modelName} not found`);
-        }
-        await model.update(data as any, { where: { id } });
-        return true;
+    return model;
+  }
+
+  async insert(data: Entity): Promise<boolean> {
+    const model = this.getModel();
+    await model.create(data as any);
+    return true;
+  }
+
+  async update(id: string, data: UpdateDTO): Promise<boolean> {
+    const model = this.getModel();
+    await model.update(data as any, { where: { id } });
+    return true;
+  }
+
+  async delete(id: string, isHard: boolean = false): Promise<boolean> {
+    const model = this.getModel();
+
+    if (!isHard) {
+      await model.update({ status: ModelStatus.DELETED }, { where: { id } });
+    } else {
+      await model.destroy({ where: { id } });
     }
 
-    async delete(id: string, isHard: boolean = false): Promise<boolean> {
-        const model = this.sequelize.models[this.modelName];
-        if (!model) {
-            throw new Error(`Model ${this.modelName} not found`);
-        }
-        if (isHard) {
-            await model.destroy({ where: { id } });
-        } else {
-            await model.update({ status: ModelStatus.DELETED }, { where: { id } });
-        }
-        return true;
-    }
+    return true;
+  }
 }

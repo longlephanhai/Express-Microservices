@@ -15,14 +15,14 @@ export class CategoryUseCase implements ICategoryUseCase {
         const category: Category = {
             id: newId,
             name: data.name,
-            position: 0,
             image: data.image,
             description: data.description,
+            position: data.position ?? 0,
             status: ModelStatus.ACTIVE,
             createdAt: new Date(),
             updatedAt: new Date(),
         }
-        const result = await this.repository.insert(category);
+        await this.repository.insert(category);
         return newId;
     }
 

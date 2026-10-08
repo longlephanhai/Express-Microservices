@@ -34,6 +34,11 @@ export function init(sequelize: Sequelize) {
                 type: DataTypes.STRING,
                 allowNull: true,
             },
+            position:{
+                type: DataTypes.INTEGER,
+                allowNull: false,
+                defaultValue: 0,
+            },
             status: {
                 type: DataTypes.ENUM('active', 'inactive', 'deleted'),
                 allowNull: false,

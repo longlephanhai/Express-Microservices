@@ -83,9 +83,9 @@ export class CategoryHttpServiceAPI {
         // }
 
         const paging = {
-            page: 1,
-            limit: 200
-        }
+            page: parseInt(req.query.page as string) || 1,
+            limit: parseInt(req.query.limit as string) || 20
+        };
 
         const cond = CategoryCondDTOSchema.parse(req.query);
         const result = await this.useCase.listCategories(cond, paging);
