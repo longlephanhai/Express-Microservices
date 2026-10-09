@@ -6,7 +6,7 @@ export const swaggerDocument = {
   info: {
     title: "Express Microservices API",
     version: "1.0.0",
-    description: "API Documentation for Express Microservices (Category, Brand, Product)",
+    description: "API Documentation for Express Microservices (Category, Brand, Product, User Identity)",
     contact: {
       name: "API Support",
     },
@@ -29,6 +29,10 @@ export const swaggerDocument = {
     {
       name: "Products",
       description: "Product management APIs",
+    },
+    {
+      name: "User Identities",
+      description: "User sign-in identity management APIs",
     },
   ],
   paths: {
@@ -78,378 +82,475 @@ export const swaggerDocument = {
                   type: "object",
                   properties: {
                     data: {
-                      type: "array",
-                      items: { $ref: "#/components/schemas/Category" },
+                      type: "object",
+                      properties: {
+                        id: { type: "string", format: "uuid" },
+                      },
                     },
-                    paging: { $ref: "#/components/schemas/Paging" },
-                    filter: { type: "object" },
                   },
                 },
               },
             },
-          },
-        },
-      },
-      post: {
-        tags: ["Categories"],
-        summary: "Create a new category",
-        requestBody: {
-          required: true,
-          content: {
             "application/json": {
-              schema: { $ref: "#/components/schemas/CategoryCreateRequest" },
-            },
-          },
-        },
-        responses: {
-          201: {
-            description: "Category created successfully",
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  properties: {
-                    data: { type: "string", description: "Created category ID" },
+              schema: {
+                type: "object",
+                properties: {
+                  data: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/Category" },
                   },
+                  paging: { $ref: "#/components/schemas/Paging" },
+                  filter: { type: "object" },
                 },
-              },
-            },
-          },
-          400: {
-            description: "Validation error or invalid input data",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/ErrorResponse" },
               },
             },
           },
         },
       },
     },
-    "/v1/categories/{id}": {
-      get: {
-        tags: ["Categories"],
-        summary: "Get category details",
-        parameters: [
-          {
-            name: "id",
-            in: "path",
-            required: true,
-            schema: { type: "string", format: "uuid" },
-            description: "Category ID",
+    post: {
+      tags: ["Categories"],
+      summary: "Create a new category",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/CategoryCreateRequest" },
           },
-        ],
-        responses: {
-          200: {
-            description: "Category details",
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  properties: {
-                    data: { $ref: "#/components/schemas/Category" },
-                  },
+        },
+      },
+      responses: {
+        201: {
+          description: "Category created successfully",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  data: { type: "string", description: "Created category ID" },
                 },
               },
             },
           },
-          400: {
-            description: "Invalid category ID",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/ErrorResponse" },
+        },
+        400: {
+          description: "Validation error or invalid input data",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+      },
+    },
+  },
+  "/v1/categories/{id}": {
+    get: {
+      tags: ["Categories"],
+      summary: "Get category details",
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          required: true,
+          schema: { type: "string", format: "uuid" },
+          description: "Category ID",
+        },
+      ],
+      responses: {
+        200: {
+          description: "Category details",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  data: { $ref: "#/components/schemas/Category" },
+                },
               },
             },
           },
-          404: {
-            description: "Category not found",
+        },
+        400: {
+          description: "Invalid category ID",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
           },
+        },
+        404: {
+          description: "Category not found",
+        },
+      },
+    },
+    patch: {
+      tags: ["Categories"],
+      summary: "Update category",
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          required: true,
+          schema: { type: "string", format: "uuid" },
+          description: "Category ID",
+        },
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/CategoryUpdateRequest" },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: "Category updated successfully",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  data: { type: "boolean" },
+                },
+              },
+            },
+          },
+        },
+        400: {
+          description: "Validation error or invalid input data",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+      },
+    },
+    delete: {
+      tags: ["Categories"],
+      summary: "Delete category",
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          required: true,
+          schema: { type: "string", format: "uuid" },
+          description: "Category ID",
+        },
+      ],
+      responses: {
+        200: {
+          description: "Category deleted successfully",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  data: { type: "boolean" },
+                },
+              },
+            },
+          },
+        },
+        400: {
+          description: "Invalid category ID",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+      },
+    },
+  },
+
+  "/v1/brands": {
+    get: {
+      tags: ["Brands"],
+      summary: "Get list of brands",
+      parameters: [
+        {
+          name: "page",
+          in: "query",
+          schema: { type: "integer", default: 1, minimum: 1 },
+          description: "Page number",
+        },
+        {
+          name: "limit",
+          in: "query",
+          schema: { type: "integer", default: 10, minimum: 1, maximum: 100 },
+          description: "Number of items per page",
+        },
+      ],
+      responses: {
+        200: {
+          description: "List of brands retrieved successfully",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  data: {
+                    type: "array",
+                    items: { $ref: "#/components/schemas/Brand" },
+                  },
+                  paging: { $ref: "#/components/schemas/Paging" },
+                  filter: { type: "object" },
+                },
+              },
+            },
+          },
+        },
+        400: {
+          description: "Invalid paging query",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+      },
+    },
+    post: {
+      tags: ["Brands"],
+      summary: "Create a new brand",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/BrandCreateRequest" },
+          },
+        },
+      },
+      responses: {
+        201: {
+          description: "Brand created successfully",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  data: { type: "string", description: "Created brand ID" },
+                },
+              },
+            },
+          },
+        },
+        400: {
+          description: "Validation error or invalid input data",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+      },
+    },
+  },
+  "/v1/brands/{id}": {
+    get: {
+      tags: ["Brands"],
+      summary: "Get brand details",
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          required: true,
+          schema: { type: "string", format: "uuid" },
+          description: "Brand ID",
+        },
+      ],
+      responses: {
+        200: {
+          description: "Brand details",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  data: { $ref: "#/components/schemas/Brand" },
+                },
+              },
+            },
+          },
+        },
+        400: {
+          description: "Invalid brand ID",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+      },
+    },
+    patch: {
+      tags: ["Brands"],
+      summary: "Update brand",
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          required: true,
+          schema: { type: "string", format: "uuid" },
+          description: "Brand ID",
+        },
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/BrandUpdateRequest" },
+          },
+        },
+      },
+      responses: {
+        200: {
+          description: "Brand updated successfully",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  data: { type: "boolean" },
+                },
+              },
+            },
+          },
+        },
+        400: {
+          description: "Validation error or invalid input data",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+      },
+    },
+    delete: {
+      tags: ["Brands"],
+      summary: "Delete brand",
+      parameters: [
+        {
+          name: "id",
+          in: "path",
+          required: true,
+          schema: { type: "string", format: "uuid" },
+          description: "Brand ID",
+        },
+      ],
+      responses: {
+        200: {
+          description: "Brand deleted successfully",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  data: { type: "boolean" },
+                },
+              },
+            },
+          },
+        },
+        400: {
+          description: "Invalid brand ID",
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ErrorResponse" },
+            },
+          },
+        },
+      },
+    },
+  },
+
+  "/v1/user-identities": {
+    get: {
+      tags: ["User Identities"],
+      summary: "List identities for a user",
+      parameters: [
+        { name: "userId", in: "query", required: true, schema: { type: "string", format: "uuid" } },
+        { name: "page", in: "query", schema: { type: "integer", default: 1, minimum: 1 } },
+        { name: "limit", in: "query", schema: { type: "integer", default: 10, minimum: 1, maximum: 100 } },
+        { name: "identifier", in: "query", schema: { type: "string", maxLength: 150 } },
+        { name: "type", in: "query", schema: { type: "string", enum: ["email_password", "facebook", "google"] } },
+        { name: "status", in: "query", schema: { type: "string", enum: ["active", "pending", "inactive", "banned", "deleted"] } },
+      ],
+      responses: {
+        200: {
+          description: "User identities retrieved successfully",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  data: { type: "array", items: { $ref: "#/components/schemas/UserIdentity" } },
+                  paging: { $ref: "#/components/schemas/Paging" },
+                  filter: { type: "object" },
+                },
+              },
+            },
+          },
+        },
+        400: { description: "Invalid query parameters", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+      },
+    },
+    post: {
+      tags: ["User Identities"],
+      summary: "Create a user identity",
+      description: "Email/password identities require an email identifier and password. OAuth identities must omit password.",
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: { $ref: "#/components/schemas/UserIdentityCreateRequest" } } },
+      },
+      responses: {
+        201: {
+          description: "User identity created successfully",
+          content: {
+            "application/json": { schema: { type: "object", properties: { data: { type: "object", properties: { id: { type: "string", format: "uuid" } } } } } },
+          },
+          400: { description: "Invalid identity data", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+    "/v1/user-identities/{id}": {
+      parameters: [
+        { name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } },
+      ],
+      get: {
+        tags: ["User Identities"],
+        summary: "Get a user identity",
+        responses: {
+          200: { description: "User identity retrieved successfully", content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/UserIdentity" } } } } } },
+          404: { description: "User identity not found", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
         },
       },
       patch: {
-        tags: ["Categories"],
-        summary: "Update category",
-        parameters: [
-          {
-            name: "id",
-            in: "path",
-            required: true,
-            schema: { type: "string", format: "uuid" },
-            description: "Category ID",
-          },
-        ],
+        tags: ["User Identities"],
+        summary: "Update a user identity",
         requestBody: {
           required: true,
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/CategoryUpdateRequest" },
-            },
-          },
+          content: { "application/json": { schema: { $ref: "#/components/schemas/UserIdentityUpdateRequest" } } },
         },
         responses: {
-          200: {
-            description: "Category updated successfully",
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  properties: {
-                    data: { type: "boolean" },
-                  },
-                },
-              },
-            },
-          },
-          400: {
-            description: "Validation error or invalid input data",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/ErrorResponse" },
-              },
-            },
-          },
+          200: { description: "User identity updated successfully", content: { "application/json": { schema: { type: "object", properties: { data: { type: "boolean" } } } } } },
+          400: { description: "Invalid update data", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+          404: { description: "User identity not found", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
         },
       },
       delete: {
-        tags: ["Categories"],
-        summary: "Delete category",
-        parameters: [
-          {
-            name: "id",
-            in: "path",
-            required: true,
-            schema: { type: "string", format: "uuid" },
-            description: "Category ID",
-          },
-        ],
+        tags: ["User Identities"],
+        summary: "Soft-delete a user identity",
         responses: {
-          200: {
-            description: "Category deleted successfully",
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  properties: {
-                    data: { type: "boolean" },
-                  },
-                },
-              },
-            },
-          },
-          400: {
-            description: "Invalid category ID",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/ErrorResponse" },
-              },
-            },
-          },
+          200: { description: "User identity deleted successfully", content: { "application/json": { schema: { type: "object", properties: { data: { type: "boolean" } } } } } },
+          404: { description: "User identity not found", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
         },
       },
     },
-
-    "/v1/brands": {
-      get: {
-        tags: ["Brands"],
-        summary: "Get list of brands",
-        parameters: [
-          {
-            name: "page",
-            in: "query",
-            schema: { type: "integer", default: 1, minimum: 1 },
-            description: "Page number",
-          },
-          {
-            name: "limit",
-            in: "query",
-            schema: { type: "integer", default: 10, minimum: 1, maximum: 100 },
-            description: "Number of items per page",
-          },
-        ],
-        responses: {
-          200: {
-            description: "List of brands retrieved successfully",
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  properties: {
-                    data: {
-                      type: "array",
-                      items: { $ref: "#/components/schemas/Brand" },
-                    },
-                    paging: { $ref: "#/components/schemas/Paging" },
-                    filter: { type: "object" },
-                  },
-                },
-              },
-            },
-          },
-          400: {
-            description: "Invalid paging query",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/ErrorResponse" },
-              },
-            },
-          },
-        },
-      },
-      post: {
-        tags: ["Brands"],
-        summary: "Create a new brand",
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/BrandCreateRequest" },
-            },
-          },
-        },
-        responses: {
-          201: {
-            description: "Brand created successfully",
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  properties: {
-                    data: { type: "string", description: "Created brand ID" },
-                  },
-                },
-              },
-            },
-          },
-          400: {
-            description: "Validation error or invalid input data",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/ErrorResponse" },
-              },
-            },
-          },
-        },
-      },
-    },
-    "/v1/brands/{id}": {
-      get: {
-        tags: ["Brands"],
-        summary: "Get brand details",
-        parameters: [
-          {
-            name: "id",
-            in: "path",
-            required: true,
-            schema: { type: "string", format: "uuid" },
-            description: "Brand ID",
-          },
-        ],
-        responses: {
-          200: {
-            description: "Brand details",
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  properties: {
-                    data: { $ref: "#/components/schemas/Brand" },
-                  },
-                },
-              },
-            },
-          },
-          400: {
-            description: "Invalid brand ID",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/ErrorResponse" },
-              },
-            },
-          },
-        },
-      },
-      patch: {
-        tags: ["Brands"],
-        summary: "Update brand",
-        parameters: [
-          {
-            name: "id",
-            in: "path",
-            required: true,
-            schema: { type: "string", format: "uuid" },
-            description: "Brand ID",
-          },
-        ],
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/BrandUpdateRequest" },
-            },
-          },
-        },
-        responses: {
-          200: {
-            description: "Brand updated successfully",
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  properties: {
-                    data: { type: "boolean" },
-                  },
-                },
-              },
-            },
-          },
-          400: {
-            description: "Validation error or invalid input data",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/ErrorResponse" },
-              },
-            },
-          },
-        },
-      },
-      delete: {
-        tags: ["Brands"],
-        summary: "Delete brand",
-        parameters: [
-          {
-            name: "id",
-            in: "path",
-            required: true,
-            schema: { type: "string", format: "uuid" },
-            description: "Brand ID",
-          },
-        ],
-        responses: {
-          200: {
-            description: "Brand deleted successfully",
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  properties: {
-                    data: { type: "boolean" },
-                  },
-                },
-              },
-            },
-          },
-          400: {
-            description: "Invalid brand ID",
-            content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/ErrorResponse" },
-              },
-            },
-          },
-        },
-      },
-    },
-
     "/v1/products": {
       get: {
         tags: ["Products"],
@@ -676,6 +777,37 @@ export const swaggerDocument = {
           page: { type: "integer", example: 1 },
           limit: { type: "integer", example: 10 },
           total: { type: "integer", example: 100 },
+        },
+      },
+      UserIdentity: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          userId: { type: "string", format: "uuid" },
+          identifier: { type: "string", maxLength: 150 },
+          type: { type: "string", enum: ["email_password", "facebook", "google"] },
+          status: { type: "string", enum: ["active", "pending", "inactive", "banned", "deleted"] },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+      UserIdentityCreateRequest: {
+        type: "object",
+        required: ["userId", "identifier", "type"],
+        properties: {
+          userId: { type: "string", format: "uuid" },
+          identifier: { type: "string", maxLength: 150, example: "user@example.com" },
+          password: { type: "string", minLength: 8, maxLength: 100, writeOnly: true },
+          type: { type: "string", enum: ["email_password", "facebook", "google"] },
+        },
+      },
+      UserIdentityUpdateRequest: {
+        type: "object",
+        minProperties: 1,
+        properties: {
+          identifier: { type: "string", maxLength: 150 },
+          password: { type: "string", minLength: 8, maxLength: 100, writeOnly: true },
+          status: { type: "string", enum: ["active", "pending", "inactive", "banned", "deleted"] },
         },
       },
       ErrorResponse: {
