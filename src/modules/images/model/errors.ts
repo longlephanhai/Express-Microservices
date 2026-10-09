@@ -1,0 +1,1 @@
+export const ErrImageNotFound = new Error("Image not found");

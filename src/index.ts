@@ -4,6 +4,7 @@ import { config } from "dotenv";
 import { sequelize } from "./share/component/sequelize";
 import { setupCategoryHexagon } from "./modules/category";
 import { setupBrandHexagon } from "./modules/brand";
+import { setupImagesHexagon } from "./modules/images";
 
 config();
 
@@ -22,6 +23,7 @@ config();
 
         app.use('/v1', setupCategoryHexagon(sequelize));
         app.use('/v1', setupBrandHexagon(sequelize));
+        app.use('/v1', setupImagesHexagon(sequelize));
 
 
 
