@@ -6,6 +6,8 @@ import { setupCategoryHexagon } from "./modules/category";
 import { setupBrandHexagon } from "./modules/brand";
 import { setUpProductHexagon } from "./modules/product";
 import { setupSwagger } from "./docs/swagger";
+import { setupOrderHexagon } from "./modules/orders";
+import { setupOrderItemHexagon } from "./modules/order_items";
 
 config();
 
@@ -29,6 +31,9 @@ config();
         app.use('/v1', setupBrandHexagon(sequelize));
         app.use('/v1', setUpProductHexagon(sequelize));
 
+        // Setup Orders modules
+        app.use('/v1', setupOrderHexagon(sequelize)); 
+        app.use('/v1', setupOrderItemHexagon(sequelize));
 
         app.listen(PORT, () => {
             console.log(`Server is running at http://localhost:${PORT}`);
