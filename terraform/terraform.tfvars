@@ -12,7 +12,7 @@ db_port                 = 3306
 
 allowed_cidr_blocks     = ["0.0.0.0/0"]
 
-enable_render   = false
+enable_render   = true
 render_api_key  = "rnd_ZkduUJ4jq6vibBwdb3CGf9ZQ2gqR"
 render_owner_id = "usr-coa22qvsc6pc7399sang"
 
