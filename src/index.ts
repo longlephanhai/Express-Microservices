@@ -7,6 +7,7 @@ import { setupBrandHexagon } from "./modules/brand";
 import { setUpProductHexagon } from "./modules/product";
 import { RPCBrandQueryRepository, RPCCategoryQueryRepository } from "./modules/product/insfra/repository/rpc";
 import { setupSwagger } from "./docs/swagger";
+import { setupUserHexagon } from "./modules/user";
 
 config();
 
@@ -32,7 +33,7 @@ config();
         app.use('/v1', setupCategoryHexagon(sequelize));
         app.use('/v1', setupBrandHexagon(sequelize));
         app.use('/v1', setUpProductHexagon(sequelize, brandRpcRepo, categoryRpcRepo));
-
+        app.use('/v1', setupUserHexagon(sequelize));
 
         app.listen(PORT, () => {
             console.log(`Server is running at http://localhost:${PORT}`);
