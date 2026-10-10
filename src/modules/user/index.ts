@@ -20,6 +20,7 @@ export const setupUserHexagon = (sequelize: Sequelize) => {
     const router = Router();
 
     router.post('/auth/register', httpService.registerUserAPI.bind(httpService));
+    router.post('/auth/login', httpService.loginUserAPI.bind(httpService));
 
     return router;
 };
