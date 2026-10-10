@@ -1,0 +1,195 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: express-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-rootpassword}
+      MYSQL_DATABASE: ${DB_NAME:-demo}
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - microservices-net
+
+  brand-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.brand
+    container_name: brand-service
+    restart: unless-stopped
+    environment:
+      BRAND_PORT: 3001
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: ${DB_PASSWORD:-rootpassword}
+      DB_NAME: ${DB_BRAND_NAME:-demo}
+      DB_TYPE: mysql
+    ports:
+      - "3001:3001"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - microservices-net
+
+  category-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.category
+    container_name: category-service
+    restart: unless-stopped
+    environment:
+      CATEGORY_PORT: 3002
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: ${DB_PASSWORD:-rootpassword}
+      DB_NAME: ${DB_CATEGORY_NAME:-demo}
+      DB_TYPE: mysql
+    ports:
+      - "3002:3002"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - microservices-net
+
+  product-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.product
+    container_name: product-service
+    restart: unless-stopped
+    environment:
+      PRODUCT_PORT: 3003
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: ${DB_PASSWORD:-rootpassword}
+      DB_NAME: ${DB_PRODUCT_NAME:-demo}
+      DB_TYPE: mysql
+      BRAND_SERVICE_URL: http://brand-service:3001
+      CATEGORY_SERVICE_URL: http://category-service:3002
+    ports:
+      - "3003:3003"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      brand-service:
+        condition: service_started
+      category-service:
+        condition: service_started
+    networks:
+      - microservices-net
+
+  user-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.user
+    container_name: user-service
+    restart: unless-stopped
+    environment:
+      USER_PORT: 3004
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: ${DB_PASSWORD:-rootpassword}
+      DB_NAME: ${DB_USER_NAME:-demo}
+      DB_TYPE: mysql
+      JWT_SECRET: ${JWT_SECRET:-just_jwt_secret_key}
+      EXPIRATION_TIME: ${EXPIRATION_TIME:-1h}
+    ports:
+      - "3004:3004"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - microservices-net
+
+  cart-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.cart
+    container_name: cart-service
+    restart: unless-stopped
+    environment:
+      CART_PORT: 3005
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: ${DB_PASSWORD:-rootpassword}
+      DB_NAME: ${DB_CART_NAME:-demo}
+      DB_TYPE: mysql
+    ports:
+      - "3005:3005"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - microservices-net
+
+  order-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.order
+    container_name: order-service
+    restart: unless-stopped
+    environment:
+      ORDER_PORT: 3006
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: ${DB_PASSWORD:-rootpassword}
+      DB_NAME: ${DB_ORDER_NAME:-demo}
+      DB_TYPE: mysql
+    ports:
+      - "3006:3006"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - microservices-net
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.gateway
+    container_name: api-gateway
+    restart: unless-stopped
+    environment:
+      GATEWAY_PORT: 3000
+      PORT: 3000
+      BRAND_SERVICE_URL: http://brand-service:3001
+      CATEGORY_SERVICE_URL: http://category-service:3002
+      PRODUCT_SERVICE_URL: http://product-service:3003
+      USER_SERVICE_URL: http://user-service:3004
+      CART_SERVICE_URL: http://cart-service:3005
+      ORDER_SERVICE_URL: http://order-service:3006
+    ports:
+      - "3000:3000"
+    depends_on:
+      - brand-service
+      - category-service
+      - product-service
+      - user-service
+      - cart-service
+      - order-service
+    networks:
+      - microservices-net
+
+volumes:
+  mysql_data:
+
+networks:
+  microservices-net:
+    driver: bridge
+

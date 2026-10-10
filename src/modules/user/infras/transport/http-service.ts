@@ -15,10 +15,16 @@ export class UserHTTPServiceAPI {
                 error: error.message
             });
         }
-        const result = await this.userUseCase.register(data);
-        res.status(201).json({
-            data: result
-        });
+        try {
+            const result = await this.userUseCase.register(data);
+            res.status(201).json({
+                data: result
+            });
+        } catch (err) {
+            res.status(400).json({
+                message: (err as Error).message
+            });
+        }
     }
 
     async loginUserAPI(req: Request, res: Response) {

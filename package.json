@@ -37,6 +37,13 @@
     "build": "tsc",
     "build:watch": "tsc -w",
     "clean": "rm -rf dist",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "start:gateway": "node dist/gateway/index.js",
+    "start:brand": "node dist/modules/brand/server.js",
+    "start:category": "node dist/modules/category/server.js",
+    "start:product": "node dist/modules/product/server.js",
+    "start:user": "node dist/modules/user/server.js",
+    "start:cart": "node dist/modules/cart/server.js",
+    "start:order": "node dist/modules/orders/server.js"
   }
 }

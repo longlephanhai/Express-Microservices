@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { Order, OrderStatus, PaymentStatus, ShippingMethod, PaymentMethod } from "./orders";
 
+export type { Order };
+
 export const OrderCreateDTOSchema = z.object({
   user_id: z.string().uuid(), shipping_address: z.string().min(1).max(255),
   shipping_city: z.string().max(80).nullable().optional(), shipping_method: z.enum(ShippingMethod).optional(),
