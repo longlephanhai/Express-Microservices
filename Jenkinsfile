@@ -2,17 +2,15 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_USER           = "longlephanhai"           // Thay bằng Docker Hub username của bạn
-        DOCKER_CREDENTIALS_ID = "docker-hub-credentials"  // ID Username/Password trong Jenkins Credentials
+        DOCKER_USER           = "longlephanhai"          
+        DOCKER_CREDENTIALS_ID = "docker-hub-credentials"  
         IMAGE_TAG             = "${BUILD_NUMBER}"
 
-        // ---------------------------------------------------------------------
-        // Cấu hình AWS RDS MySQL
-        // ---------------------------------------------------------------------
+
         DB_HOST               = "prod-mysql-db.cv02mk0y86bf.ap-southeast-1.rds.amazonaws.com"
         DB_PORT               = "3306"
         DB_USERNAME           = "admin"
-        DB_PASSWORD           = credentials('rds-db-password') // Tạo Secret Text trong Jenkins có ID là rds-db-password
+        DB_PASSWORD           = credentials('rds-db-password') 
         DB_NAME               = "mysqlDatabase"
         DB_TYPE               = "mysql"
     }
@@ -20,16 +18,15 @@ pipeline {
     stages {
         stage('1. Checkout SCM') {
             steps {
-                echo '📥 Kéo mã nguồn mới nhất từ GitHub...'
+                echo 'Kéo mã nguồn mới nhất từ GitHub'
                 checkout scm
             }
         }
 
         stage('2. Build Check & TypeScript Compile') {
             steps {
-                echo '🔨 Kiểm tra biên dịch TypeScript (sử dụng container Node 22)...'
+                echo 'Kiểm tra biên dịch TypeScript'
                 sh '''
-                    # Chạy qua Docker để không cần cài Node.js lên máy chủ Jenkins
                     docker run --rm -v "$(pwd):/app" -w /app node:22-alpine sh -c "
                         if [ -f package-lock.json ]; then
                             npm ci
@@ -44,7 +41,7 @@ pipeline {
 
         stage('3. Run Database Migration') {
             steps {
-                echo '🔄 Đồng bộ hóa bảng (Table Schema) lên AWS RDS MySQL...'
+                echo 'Đồng bộ hóa bảng (Table Schema) lên AWS RDS MySQL...'
                 sh '''
                     docker run --rm \
                         -e DB_HOST="${DB_HOST}" \
@@ -62,7 +59,7 @@ pipeline {
 
         stage('4. Build Docker Images') {
             steps {
-                echo '🐳 Building Docker images for all 7 Microservices...'
+                echo 'Building Docker images for Microservices...'
                 sh """
                     docker build -f docker/Dockerfile.brand -t ${DOCKER_USER}/express-brand:${IMAGE_TAG} -t ${DOCKER_USER}/express-brand:latest .
                     docker build -f docker/Dockerfile.category -t ${DOCKER_USER}/express-category:${IMAGE_TAG} -t ${DOCKER_USER}/express-category:latest .
@@ -77,7 +74,7 @@ pipeline {
 
         stage('5. Push Images to Docker Hub') {
             steps {
-                echo '🚀 Đăng nhập và đẩy Images lên Docker Hub...'
+                echo 'Đăng nhập và đẩy Images lên Docker Hub...'
                 withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS_ID}", usernameVariable: 'DOCKER_HUB_USER', passwordVariable: 'DOCKER_HUB_PASS')]) {
                     sh '''
                         echo "$DOCKER_HUB_PASS" | docker login -u "$DOCKER_HUB_USER" --password-stdin
@@ -109,7 +106,7 @@ pipeline {
 
         stage('6. Deploy Microservices') {
             steps {
-                echo '🚀 Khởi động toàn bộ Microservices bằng Docker Compose...'
+                echo 'Khởi động toàn bộ Microservices bằng Docker Compose...'
                 sh '''
                     # Sinh file .env kết nối trực tiếp đến RDS MySQL
                     cat <<EOF > .env
@@ -154,14 +151,14 @@ EOF
 
     post {
         always {
-            echo '🧹 Dọn dẹp images tạm thời...'
+            echo 'Dọn dẹp images tạm thời...'
             sh 'docker image prune -f || true'
         }
         success {
-            echo '🎉 [CI/CD THÀNH CÔNG] Toàn bộ hệ thống microservices đã được build, migrate và chạy lên thành công!'
+            echo '[CI/CD THÀNH CÔNG] Toàn bộ hệ thống microservices đã được build, migrate và chạy lên thành công!'
         }
         failure {
-            echo '❌ [CI/CD THẤT BẠI] Vui lòng kiểm tra Console Output để xem chi tiết lỗi.'
+            echo '[CI/CD THẤT BẠI] Vui lòng kiểm tra Console Output để xem chi tiết lỗi.'
         }
     }
 }
