@@ -31,7 +31,11 @@ pipeline {
                 sh '''
                     # Chạy qua Docker để không cần cài Node.js lên máy chủ Jenkins
                     docker run --rm -v "$(pwd):/app" -w /app node:22-alpine sh -c "
-                        npm ci
+                        if [ -f package-lock.json ]; then
+                            npm ci
+                        else
+                            npm install
+                        fi
                         npm run build
                     "
                 '''
