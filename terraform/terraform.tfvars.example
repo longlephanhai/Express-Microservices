@@ -1,0 +1,43 @@
+# ==============================================================================
+# AWS Configuration
+# ==============================================================================
+aws_region  = "ap-southeast-1"
+environment = "prod"
+
+# ==============================================================================
+# AWS RDS MySQL Configuration (Standard RDS MySQL - Non Aurora)
+# ==============================================================================
+db_name                 = "demo"
+db_username             = "admin"
+db_password             = "SuperSecretPassword123!" # Thay đổi mật khẩu an toàn
+db_instance_class       = "db.t3.micro"             # Free tier eligible (Standard MySQL)
+db_allocated_storage    = 20                        # Dung lượng ban đầu (GB)
+db_max_allocated_storage= 100                       # Giới hạn tự động mở rộng (GB)
+db_port                 = 3306
+
+# Cho phép kết nối từ internet (Render kết nối tới RDS qua địa chỉ IP công khai)
+allowed_cidr_blocks     = ["0.0.0.0/0"]
+
+# ==============================================================================
+# Render Configuration
+# ==============================================================================
+enable_render   = true
+# Lấy API Key từ Render Dashboard: Account Settings -> API Keys
+render_api_key  = "rnd_xxxxxxxxxxxxxxxxxxxxxxxx"
+
+# Lấy Owner ID / Workspace ID từ Render Dashboard URL (hoặc để trống nếu set qua biến môi trường)
+render_owner_id = "tea-xxxxxxxxxxxxxxxx"
+
+render_region   = "singapore"
+render_plan     = "starter"
+
+# URL repository GitHub/GitLab của bạn mà Render sẽ pull code về build Dockerfile
+repo_url        = "https://github.com/your-username/express-microservices"
+repo_branch     = "main"
+
+# ==============================================================================
+# Application Secrets
+# ==============================================================================
+jwt_secret      = "your_jwt_secret_key_here"
+expiration_time = "1h"
+
