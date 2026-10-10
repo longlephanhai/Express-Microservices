@@ -25,6 +25,7 @@
   },
   "scripts": {
     "dev": "nodemon src/index.ts",
+    "db:migrate": "ts-node scripts/migrate.ts",
     "dev:gateway": "nodemon src/gateway/index.ts",
     "dev:brand": "nodemon src/modules/brand/server.ts",
     "dev:category": "nodemon src/modules/category/server.ts",
