@@ -1,24 +1,4 @@
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: express-mysql
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-rootpassword}
-      MYSQL_DATABASE: ${DB_NAME:-demo}
-    ports:
-      - "${DB_PORT:-3306}:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
-    networks:
-      - microservices-net
-
   brand-service:
     build:
       context: .
@@ -27,17 +7,15 @@ services:
     restart: unless-stopped
     environment:
       BRAND_PORT: 3001
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USERNAME: root
-      DB_PASSWORD: ${DB_PASSWORD:-rootpassword}
+      PORT: 3001
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USERNAME: ${DB_USERNAME:-root}
+      DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_BRAND_NAME:-demo}
       DB_TYPE: mysql
     ports:
       - "3001:3001"
-    depends_on:
-      mysql:
-        condition: service_healthy
     networks:
       - microservices-net
 
@@ -49,17 +27,15 @@ services:
     restart: unless-stopped
     environment:
       CATEGORY_PORT: 3002
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USERNAME: root
-      DB_PASSWORD: ${DB_PASSWORD:-rootpassword}
+      PORT: 3002
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USERNAME: ${DB_USERNAME:-root}
+      DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_CATEGORY_NAME:-demo}
       DB_TYPE: mysql
     ports:
       - "3002:3002"
-    depends_on:
-      mysql:
-        condition: service_healthy
     networks:
       - microservices-net
 
@@ -71,10 +47,11 @@ services:
     restart: unless-stopped
     environment:
       PRODUCT_PORT: 3003
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USERNAME: root
-      DB_PASSWORD: ${DB_PASSWORD:-rootpassword}
+      PORT: 3003
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USERNAME: ${DB_USERNAME:-root}
+      DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_PRODUCT_NAME:-demo}
       DB_TYPE: mysql
       BRAND_SERVICE_URL: http://brand-service:3001
@@ -82,8 +59,6 @@ services:
     ports:
       - "3003:3003"
     depends_on:
-      mysql:
-        condition: service_healthy
       brand-service:
         condition: service_started
       category-service:
@@ -99,19 +74,17 @@ services:
     restart: unless-stopped
     environment:
       USER_PORT: 3004
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USERNAME: root
-      DB_PASSWORD: ${DB_PASSWORD:-rootpassword}
+      PORT: 3004
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USERNAME: ${DB_USERNAME:-root}
+      DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_USER_NAME:-demo}
       DB_TYPE: mysql
       JWT_SECRET: ${JWT_SECRET:-just_jwt_secret_key}
       EXPIRATION_TIME: ${EXPIRATION_TIME:-1h}
     ports:
       - "3004:3004"
-    depends_on:
-      mysql:
-        condition: service_healthy
     networks:
       - microservices-net
 
@@ -123,17 +96,15 @@ services:
     restart: unless-stopped
     environment:
       CART_PORT: 3005
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USERNAME: root
-      DB_PASSWORD: ${DB_PASSWORD:-rootpassword}
+      PORT: 3005
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USERNAME: ${DB_USERNAME:-root}
+      DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_CART_NAME:-demo}
       DB_TYPE: mysql
     ports:
       - "3005:3005"
-    depends_on:
-      mysql:
-        condition: service_healthy
     networks:
       - microservices-net
 
@@ -145,17 +116,15 @@ services:
     restart: unless-stopped
     environment:
       ORDER_PORT: 3006
-      DB_HOST: mysql
-      DB_PORT: 3306
-      DB_USERNAME: root
-      DB_PASSWORD: ${DB_PASSWORD:-rootpassword}
+      PORT: 3006
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_USERNAME: ${DB_USERNAME:-root}
+      DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_ORDER_NAME:-demo}
       DB_TYPE: mysql
     ports:
       - "3006:3006"
-    depends_on:
-      mysql:
-        condition: service_healthy
     networks:
       - microservices-net
 
@@ -186,10 +155,6 @@ services:
     networks:
       - microservices-net
 
-volumes:
-  mysql_data:
-
 networks:
   microservices-net:
     driver: bridge
-
