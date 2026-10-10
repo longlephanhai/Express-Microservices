@@ -16,6 +16,7 @@ const services = [
     { name: "BRAND", cmd: "npm", args: ["run", "dev:brand"], color: colors.brand },
     { name: "CATEGORY", cmd: "npm", args: ["run", "dev:category"], color: colors.category },
     { name: "PRODUCT", cmd: "npm", args: ["run", "dev:product"], color: colors.product },
+    { name: "CART", cmd: "npm", args: ["run", "dev:cart"], color: colors.cart }
 ];
 
 console.log(" Đang khởi động tất cả Microservices & API Gateway...\n");

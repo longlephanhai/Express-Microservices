@@ -30,6 +30,7 @@
     "dev:category": "nodemon src/modules/category/server.ts",
     "dev:product": "nodemon src/modules/product/server.ts",
     "dev:user": "nodemon src/modules/user/server.ts",
+    "dev:cart": "nodemon src/modules/cart/server.ts",
     "dev:all": "node scripts/dev-all.js",
     "dev:microservices": "node scripts/dev-all.js",
     "build": "tsc",
