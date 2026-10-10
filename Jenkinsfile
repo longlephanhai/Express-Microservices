@@ -58,30 +58,16 @@ pipeline {
 
         stage('4. Build Docker Images') {
             steps {
-                echo '🐳 Build song song 7 Docker images cho toàn bộ Microservices...'
-                parallel(
-                    "Brand Service": {
-                        sh "docker build -f docker/Dockerfile.brand -t ${DOCKER_USER}/express-brand:${IMAGE_TAG} -t ${DOCKER_USER}/express-brand:latest ."
-                    },
-                    "Category Service": {
-                        sh "docker build -f docker/Dockerfile.category -t ${DOCKER_USER}/express-category:${IMAGE_TAG} -t ${DOCKER_USER}/express-category:latest ."
-                    },
-                    "Product Service": {
-                        sh "docker build -f docker/Dockerfile.product -t ${DOCKER_USER}/express-product:${IMAGE_TAG} -t ${DOCKER_USER}/express-product:latest ."
-                    },
-                    "User Service": {
-                        sh "docker build -f docker/Dockerfile.user -t ${DOCKER_USER}/express-user:${IMAGE_TAG} -t ${DOCKER_USER}/express-user:latest ."
-                    },
-                    "Cart Service": {
-                        sh "docker build -f docker/Dockerfile.cart -t ${DOCKER_USER}/express-cart:${IMAGE_TAG} -t ${DOCKER_USER}/express-cart:latest ."
-                    },
-                    "Order Service": {
-                        sh "docker build -f docker/Dockerfile.order -t ${DOCKER_USER}/express-order:${IMAGE_TAG} -t ${DOCKER_USER}/express-order:latest ."
-                    },
-                    "API Gateway": {
-                        sh "docker build -f docker/Dockerfile.gateway -t ${DOCKER_USER}/express-gateway:${IMAGE_TAG} -t ${DOCKER_USER}/express-gateway:latest ."
-                    }
-                )
+                echo '🐳 Building Docker images for all 7 Microservices...'
+                sh """
+                    docker build -f docker/Dockerfile.brand -t ${DOCKER_USER}/express-brand:${IMAGE_TAG} -t ${DOCKER_USER}/express-brand:latest .
+                    docker build -f docker/Dockerfile.category -t ${DOCKER_USER}/express-category:${IMAGE_TAG} -t ${DOCKER_USER}/express-category:latest .
+                    docker build -f docker/Dockerfile.product -t ${DOCKER_USER}/express-product:${IMAGE_TAG} -t ${DOCKER_USER}/express-product:latest .
+                    docker build -f docker/Dockerfile.user -t ${DOCKER_USER}/express-user:${IMAGE_TAG} -t ${DOCKER_USER}/express-user:latest .
+                    docker build -f docker/Dockerfile.cart -t ${DOCKER_USER}/express-cart:${IMAGE_TAG} -t ${DOCKER_USER}/express-cart:latest .
+                    docker build -f docker/Dockerfile.order -t ${DOCKER_USER}/express-order:${IMAGE_TAG} -t ${DOCKER_USER}/express-order:latest .
+                    docker build -f docker/Dockerfile.gateway -t ${DOCKER_USER}/express-gateway:${IMAGE_TAG} -t ${DOCKER_USER}/express-gateway:latest .
+                """
             }
         }
 
