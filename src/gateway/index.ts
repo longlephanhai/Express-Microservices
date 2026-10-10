@@ -11,6 +11,7 @@ const PORT = process.env.GATEWAY_PORT || 3000;
 const BRAND_SERVICE_URL = process.env.BRAND_SERVICE_URL || "http://localhost:3001";
 const CATEGORY_SERVICE_URL = process.env.CATEGORY_SERVICE_URL || "http://localhost:3002";
 const PRODUCT_SERVICE_URL = process.env.PRODUCT_SERVICE_URL || "http://localhost:3003";
+const USER_SERVICE_URL = process.env.USER_SERVICE_URL || "http://localhost:3004";
 
 app.use(express.json());
 
@@ -24,6 +25,7 @@ app.get("/health", (req: Request, res: Response) => {
             brand: BRAND_SERVICE_URL,
             category: CATEGORY_SERVICE_URL,
             product: PRODUCT_SERVICE_URL,
+            user: USER_SERVICE_URL,
         },
     });
 });
@@ -67,6 +69,8 @@ function createServiceProxy(targetBaseUrl: string) {
 app.use("/v1/brands", createServiceProxy(BRAND_SERVICE_URL));
 app.use("/v1/categories", createServiceProxy(CATEGORY_SERVICE_URL));
 app.use("/v1/products", createServiceProxy(PRODUCT_SERVICE_URL));
+app.use("/v1/auth", createServiceProxy(USER_SERVICE_URL));
+app.use("/v1/users", createServiceProxy(USER_SERVICE_URL));
 
 app.get("/", (req: Request, res: Response) => {
     res.send("API Gateway is running. Swagger Docs available at /api-docs");
@@ -79,4 +83,6 @@ app.listen(PORT, () => {
     console.log(`  - /v1/brands      -> ${BRAND_SERVICE_URL}`);
     console.log(`  - /v1/categories  -> ${CATEGORY_SERVICE_URL}`);
     console.log(`  - /v1/products    -> ${PRODUCT_SERVICE_URL}`);
+    console.log(`  - /v1/auth        -> ${USER_SERVICE_URL}`);
+    console.log(`  - /v1/users       -> ${USER_SERVICE_URL}`);
 });
