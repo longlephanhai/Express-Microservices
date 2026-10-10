@@ -13,6 +13,7 @@ const CATEGORY_SERVICE_URL = process.env.CATEGORY_SERVICE_URL || "http://localho
 const PRODUCT_SERVICE_URL = process.env.PRODUCT_SERVICE_URL || "http://localhost:3003";
 const USER_SERVICE_URL = process.env.USER_SERVICE_URL || "http://localhost:3004";
 const CART_SERVICE_URL = process.env.CART_SERVICE_URL || "http://localhost:3005";
+const ORDER_SERVICE_URL = process.env.ORDER_SERVICE_URL || "http://localhost:3006";
 
 app.use(express.json());
 
@@ -28,6 +29,7 @@ app.get("/health", (req: Request, res: Response) => {
             product: PRODUCT_SERVICE_URL,
             user: USER_SERVICE_URL,
             cart: CART_SERVICE_URL,
+            order: ORDER_SERVICE_URL
         },
     });
 });
@@ -74,6 +76,7 @@ app.use("/v1/products", createServiceProxy(PRODUCT_SERVICE_URL));
 app.use("/v1/auth", createServiceProxy(USER_SERVICE_URL));
 app.use("/v1/users", createServiceProxy(USER_SERVICE_URL));
 app.use("/v1/carts", createServiceProxy(CART_SERVICE_URL));
+app.use("/v1/orders", createServiceProxy(ORDER_SERVICE_URL));
 
 app.get("/", (req: Request, res: Response) => {
     res.send("API Gateway is running. Swagger Docs available at /api-docs");
