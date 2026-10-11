@@ -6,6 +6,7 @@ import { IBrandQueryRepository, ICategoryQueryRepository } from "./interface";
 import { ProductUseCase } from "./usecase";
 import { ProductCommandHTTPServiceAPI, ProductQueryHTTPServiceAPI } from "./insfra/transport/http-service";
 import { Router } from "express";
+import { authMiddleware } from "../../share/middleware/auth";
 
 
 export function setUpProductHexagon(
@@ -26,6 +27,7 @@ export function setUpProductHexagon(
     const productCommandHttpService = new ProductCommandHTTPServiceAPI(productUseCase);
 
     const router = Router();
+    router.use(authMiddleware);
 
     router.post('/products', productCommandHttpService.createNewProductAPI.bind(productCommandHttpService));
     router.get('/products', productQueryHttpService.listProductsAPI.bind(productQueryHttpService));

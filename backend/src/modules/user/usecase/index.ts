@@ -85,8 +85,13 @@ export class UserUseCase implements IUserUseCase {
     createNewUser(data: UserRegistrationDTO): Promise<string | null> {
         throw new Error("Method not implemented.");
     }
-    getDetailUser(id: string): Promise<User | null> {
-        throw new Error("Method not implemented.");
+    async getDetailUser(id: string): Promise<User | null> {
+        const user = await this.userQueryRepository.get(id);
+        if (!user || user.status === Status.DELETED) {
+            return null;
+        }
+        const { password, salt, ...safeUser } = user;
+        return safeUser as User;
     }
     listUsers(cond: UserCondDTO, paging: PagingDTO): Promise<User[]> {
         throw new Error("Method not implemented.");

@@ -7,6 +7,8 @@ import { UserHTTPServiceAPI } from "./infras/transport/http-service";
 import { Router } from "express";
 import { init, modelName } from "./infras/repository/mysql/dto";
 
+import { authMiddleware } from "../../share/middleware/auth";
+
 export const setupUserHexagon = (sequelize: Sequelize) => {
     init(sequelize);
 
@@ -19,8 +21,14 @@ export const setupUserHexagon = (sequelize: Sequelize) => {
 
     const router = Router();
 
+    // Public auth routes
     router.post('/auth/register', httpService.registerUserAPI.bind(httpService));
     router.post('/auth/login', httpService.loginUserAPI.bind(httpService));
+
+    // Protected user routes
+    router.get('/auth/me', authMiddleware, httpService.getProfileAPI.bind(httpService));
+    router.get('/users/profile', authMiddleware, httpService.getProfileAPI.bind(httpService));
+    router.get('/users/me', authMiddleware, httpService.getProfileAPI.bind(httpService));
 
     return router;
 };

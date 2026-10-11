@@ -7,7 +7,12 @@ export class CartHttpServiceAPI {
     constructor(private readonly useCase: ICartUseCase) { }
 
     async createCartItemAPI(req: Request, res: Response) {
-        const { success, data, error } = CartCreateSchema.safeParse(req.body);
+        const userId = req.userId || req.body?.userId;
+        const bodyWithUser = {
+            ...req.body,
+            userId,
+        };
+        const { success, data, error } = CartCreateSchema.safeParse(bodyWithUser);
 
         if (!success) {
             return res.status(400).json({
@@ -105,7 +110,13 @@ export class CartHttpServiceAPI {
             });
         }
 
-        const condResult = CartCondDTOSchema.safeParse(req.query);
+        const userId = req.userId || (req.query.userId as string);
+        const queryWithUser = {
+            ...req.query,
+            userId,
+        };
+
+        const condResult = CartCondDTOSchema.safeParse(queryWithUser);
         if (!condResult.success) {
             return res.status(400).json({
                 error: condResult.error.message

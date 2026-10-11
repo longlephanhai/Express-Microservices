@@ -4,6 +4,8 @@ import cors from "cors";
 import axios, { AxiosResponse } from "axios";
 import { setupSwagger } from "../docs/swagger";
 
+import { authMiddleware } from "../share/middleware/auth";
+
 config();
 
 const app = express();
@@ -39,9 +41,14 @@ app.get("/health", (req: Request, res: Response) => {
 function createServiceProxy(targetBaseUrl: string) {
     return async (req: Request, res: Response) => {
         const targetUrl = `${targetBaseUrl}${req.originalUrl}`;
-        const headers = { ...req.headers };
+        const headers: Record<string, any> = { ...req.headers };
         delete headers["host"];
         delete headers["content-length"];
+
+        if (req.userId) {
+            headers["x-user-id"] = req.userId;
+            headers["x-user-role"] = req.userRole || "user";
+        }
 
         try {
             const response: AxiosResponse = await axios({
@@ -54,12 +61,10 @@ function createServiceProxy(targetBaseUrl: string) {
 
             res.status(response.status);
 
-
             const contentType = response.headers["content-type"];
             if (typeof contentType === "string") {
                 res.setHeader("content-type", contentType);
             }
-
 
             res.send(response.data);
         } catch (error: any) {
@@ -72,14 +77,17 @@ function createServiceProxy(targetBaseUrl: string) {
     };
 }
 
-app.use("/v1/brands", createServiceProxy(BRAND_SERVICE_URL));
-app.use("/v1/categories", createServiceProxy(CATEGORY_SERVICE_URL));
-app.use("/v1/products", createServiceProxy(PRODUCT_SERVICE_URL));
+// 1. Public Authentication routes (/v1/auth/register, /v1/auth/login)
 app.use("/v1/auth", createServiceProxy(USER_SERVICE_URL));
-app.use("/v1/users", createServiceProxy(USER_SERVICE_URL));
-app.use("/v1/carts", createServiceProxy(CART_SERVICE_URL));
-app.use("/v1/orders", createServiceProxy(ORDER_SERVICE_URL));
-app.use("/v1/order-items", createServiceProxy(ORDER_SERVICE_URL));
+
+// 2. All other routes require authMiddleware
+app.use("/v1/brands", authMiddleware, createServiceProxy(BRAND_SERVICE_URL));
+app.use("/v1/categories", authMiddleware, createServiceProxy(CATEGORY_SERVICE_URL));
+app.use("/v1/products", authMiddleware, createServiceProxy(PRODUCT_SERVICE_URL));
+app.use("/v1/users", authMiddleware, createServiceProxy(USER_SERVICE_URL));
+app.use("/v1/carts", authMiddleware, createServiceProxy(CART_SERVICE_URL));
+app.use("/v1/orders", authMiddleware, createServiceProxy(ORDER_SERVICE_URL));
+app.use("/v1/order-items", authMiddleware, createServiceProxy(ORDER_SERVICE_URL));
 
 app.get("/", (req: Request, res: Response) => {
     res.send("API Gateway is running. Swagger Docs available at /api-docs");

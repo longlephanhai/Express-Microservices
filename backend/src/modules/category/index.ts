@@ -4,6 +4,7 @@ import { Sequelize } from "sequelize";
 import { CategoryHttpServiceAPI } from "./infras/transport/http-service";
 import { CategoryUseCase } from "./usecase";
 import { MySQLCategoryRepository } from "./infras/repository/repo";
+import { authMiddleware } from "../../share/middleware/auth";
 
 export const setupCategoryHexagon = (sequelize: Sequelize) => {
 
@@ -14,6 +15,7 @@ export const setupCategoryHexagon = (sequelize: Sequelize) => {
     const httpService = new CategoryHttpServiceAPI(useCase);
 
     const router = Router();
+    router.use(authMiddleware);
 
     router.get("/categories", httpService.listCategoriesAPI.bind(httpService));
     router.get("/categories/:id", httpService.getDetailCategoryAPI.bind(httpService));

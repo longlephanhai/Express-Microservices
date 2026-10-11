@@ -12,6 +12,7 @@ import { setupSwagger } from "./docs/swagger";
 import { setupUserHexagon } from "./modules/user";
 import { setupOrderHexagon } from "./modules/orders";
 import { setupOrderItemHexagon } from "./modules/order_items";
+import { authMiddleware } from "./share/middleware/auth";
 
 
 config();
@@ -36,11 +37,17 @@ config();
         const brandRpcRepo = new RPCBrandQueryRepository();
         const categoryRpcRepo = new RPCCategoryQueryRepository();
 
+        // 1. Public Authentication routes (/v1/auth/register, /v1/auth/login)
+        app.use('/v1', setupUserHexagon(sequelize));
+
+        // 2. Authentication Middleware - protects all subsequent /v1 endpoints
+        app.use('/v1', authMiddleware);
+
+        // 3. Protected routes requiring valid Bearer Token
         app.use('/v1', setupCategoryHexagon(sequelize));
         app.use('/v1', setupCartHexagon(sequelize));
         app.use('/v1', setupBrandHexagon(sequelize));
         app.use('/v1', setUpProductHexagon(sequelize, brandRpcRepo, categoryRpcRepo));
-        app.use('/v1', setupUserHexagon(sequelize));
         app.use('/v1', setupOrderHexagon(sequelize)); 
         app.use('/v1', setupOrderItemHexagon(sequelize));
 

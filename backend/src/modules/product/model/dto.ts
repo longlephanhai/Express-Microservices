@@ -31,8 +31,8 @@ export const ProductUpdateSchema = z.object({
 export type ProductUpdateDTO = z.infer<typeof ProductUpdateSchema>;
 
 export const ProductCondSchema = z.object({
-    fromPrice: z.number().positive(ErrFromPriceMustBePositive).optional(),
-    toPrice: z.number().positive(ErrToPriceMustBePositive).optional(),
+    fromPrice: z.coerce.number().positive(ErrFromPriceMustBePositive).optional(),
+    toPrice: z.coerce.number().positive(ErrToPriceMustBePositive).optional(),
     brandId: z.string().uuid(ErrBrandIdMustBeValidUUID).optional(),
     categoryId: z.string().uuid(ErrCategoryIdMustBeValidUUID).optional(),
 });

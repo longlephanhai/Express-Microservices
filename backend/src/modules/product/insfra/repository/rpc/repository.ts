@@ -7,7 +7,10 @@ export class RPCBrandQueryRepository implements IBrandQueryRepository {
 
     async get(id: string): Promise<ProductBrand | null> {
         try {
-            const res = await axios.get(`${this.serviceUrl}/v1/brands/${id}`);
+            const internalSecret = process.env.INTERNAL_SERVICE_KEY || process.env.JWT_SECRET || "just_jwt_secret_key";
+            const res = await axios.get(`${this.serviceUrl}/v1/brands/${id}`, {
+                headers: { "x-internal-service": internalSecret }
+            });
             if (!res.data?.data) {
                 return null;
             }
@@ -23,7 +26,10 @@ export class RPCCategoryQueryRepository implements ICategoryQueryRepository {
 
     async get(id: string): Promise<ProductCategory | null> {
         try {
-            const res = await axios.get(`${this.serviceUrl}/v1/categories/${id}`);
+            const internalSecret = process.env.INTERNAL_SERVICE_KEY || process.env.JWT_SECRET || "just_jwt_secret_key";
+            const res = await axios.get(`${this.serviceUrl}/v1/categories/${id}`, {
+                headers: { "x-internal-service": internalSecret }
+            });
             if (!res.data?.data) {
                 return null;
             }

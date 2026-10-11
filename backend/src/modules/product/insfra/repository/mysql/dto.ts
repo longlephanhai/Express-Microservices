@@ -48,13 +48,13 @@ export function init(sequelize: Sequelize) {
 
       brandId: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true,
         field: 'brand_id'
       },
 
       categoryId: {
         type: DataTypes.UUID,
-        allowNull: false,
+        allowNull: true,
         field: 'category_id'
       },
 

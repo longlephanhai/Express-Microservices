@@ -7,7 +7,12 @@ export class OrderHttpService {
   constructor(private readonly useCase: OrderUseCase) {}
 
   async createAPI(req: Request, res: Response) {
-    const parsed = OrderCreateDTOSchema.safeParse(req.body);
+    const userId = req.userId || req.body?.user_id;
+    const bodyWithUser = {
+      ...req.body,
+      user_id: userId,
+    };
+    const parsed = OrderCreateDTOSchema.safeParse(bodyWithUser);
     if (!parsed.success) {
       return res.status(400).json({
         message: "Invalid order data",
@@ -31,6 +36,11 @@ export class OrderHttpService {
           cond[k] = req.query[k];
         }
       }
+
+      if (req.userId && req.userRole !== "admin") {
+        cond.user_id = req.userId;
+      }
+
       const orders = await this.useCase.listOrders(cond);
       return res.status(200).json({ data: orders });
     } catch (e) {

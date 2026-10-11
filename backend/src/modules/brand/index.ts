@@ -9,6 +9,8 @@ import { GetBrandDetailQuery } from "./usecase/get-brand-detail";
 import { ListBrandQuery } from "./usecase/list-brand";
 import { UpdateBrandCmdHandler } from "./usecase/update-brand";
 
+import { authMiddleware } from "../../share/middleware/auth";
+
 export const setupBrandHexagon = (sequelize: Sequelize) => {
   init(sequelize);
 
@@ -29,6 +31,7 @@ export const setupBrandHexagon = (sequelize: Sequelize) => {
   );
 
   const router = Router();
+  router.use(authMiddleware);
 
   router.post('/brands', httpService.createAPI.bind(httpService));
   router.get('/brands/:id', httpService.getDetailAPI.bind(httpService));

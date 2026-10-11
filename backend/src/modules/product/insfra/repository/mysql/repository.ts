@@ -30,7 +30,27 @@ export class MySQLProductQueryRepository implements IProductQueryRepository {
 
     async list(cond: ProductCondDTO, paging: PagingDTO): Promise<Product[]> {
         const { page, limit } = paging;
-        const condSQL = { status: { [Op.ne]: ModelStatus.DELETED } };
+        const condSQL: any = { status: { [Op.ne]: ModelStatus.DELETED } };
+
+        if (cond.brandId) {
+            condSQL.brandId = cond.brandId;
+        }
+
+        if (cond.categoryId) {
+            condSQL.categoryId = cond.categoryId;
+        }
+
+        if (cond.fromPrice !== undefined || cond.toPrice !== undefined) {
+            const priceFilter: any = {};
+            if (cond.fromPrice !== undefined) {
+                priceFilter[Op.gte] = cond.fromPrice;
+            }
+            if (cond.toPrice !== undefined) {
+                priceFilter[Op.lte] = cond.toPrice;
+            }
+            condSQL.price = priceFilter;
+        }
+
         const model = this.sequelize.models[this.modelName];
         if (!model) {
             throw new Error(`Model ${this.modelName} not found`);

@@ -28,6 +28,7 @@ resource "render_web_service" "brand" {
     "DB_NAME"       = { value = var.db_name }
     "DB_BRAND_NAME" = { value = var.db_name }
     "DB_TYPE"       = { value = "mysql" }
+    "JWT_SECRET"    = { value = var.jwt_secret }
   }
 }
 
@@ -59,6 +60,7 @@ resource "render_web_service" "category" {
     "DB_NAME"          = { value = var.db_name }
     "DB_CATEGORY_NAME" = { value = var.db_name }
     "DB_TYPE"          = { value = "mysql" }
+    "JWT_SECRET"       = { value = var.jwt_secret }
   }
 }
 
@@ -125,6 +127,7 @@ resource "render_web_service" "cart" {
     "DB_NAME"      = { value = var.db_name }
     "DB_CART_NAME" = { value = var.db_name }
     "DB_TYPE"      = { value = "mysql" }
+    "JWT_SECRET"   = { value = var.jwt_secret }
   }
 }
 
@@ -156,6 +159,7 @@ resource "render_web_service" "order" {
     "DB_NAME"       = { value = var.db_name }
     "DB_ORDER_NAME" = { value = var.db_name }
     "DB_TYPE"       = { value = "mysql" }
+    "JWT_SECRET"    = { value = var.jwt_secret }
   }
 }
 
@@ -188,6 +192,7 @@ resource "render_web_service" "product" {
     "DB_NAME"              = { value = var.db_name }
     "DB_PRODUCT_NAME"      = { value = var.db_name }
     "DB_TYPE"              = { value = "mysql" }
+    "JWT_SECRET"           = { value = var.jwt_secret }
     "BRAND_SERVICE_URL"    = { value = render_web_service.brand[0].url }
     "CATEGORY_SERVICE_URL" = { value = render_web_service.category[0].url }
   }
@@ -215,6 +220,7 @@ resource "render_web_service" "gateway" {
     "NODE_ENV"             = { value = "production" }
     "PORT"                 = { value = "3000" }
     "GATEWAY_PORT"         = { value = "3000" }
+    "JWT_SECRET"           = { value = var.jwt_secret }
     "BRAND_SERVICE_URL"    = { value = render_web_service.brand[0].url }
     "CATEGORY_SERVICE_URL" = { value = render_web_service.category[0].url }
     "PRODUCT_SERVICE_URL"  = { value = render_web_service.product[0].url }

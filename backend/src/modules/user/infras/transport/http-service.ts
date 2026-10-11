@@ -37,4 +37,20 @@ export class UserHTTPServiceAPI {
             });
         }
     }
+
+    async getProfileAPI(req: Request, res: Response) {
+        const { userId } = req;
+        if (!userId) {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
+        try {
+            const user = await this.userUseCase.getDetailUser(userId);
+            if (!user) {
+                return res.status(404).json({ message: "User not found" });
+            }
+            res.status(200).json({ data: user });
+        } catch (err: any) {
+            res.status(500).json({ message: err.message });
+        }
+    }
 }
