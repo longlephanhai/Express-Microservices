@@ -81,13 +81,13 @@ function createServiceProxy(targetBaseUrl: string) {
 app.use("/v1/auth", createServiceProxy(USER_SERVICE_URL));
 
 // 2. All other routes require authMiddleware
-app.use("/v1/brands", authMiddleware, createServiceProxy(BRAND_SERVICE_URL));
-app.use("/v1/categories", authMiddleware, createServiceProxy(CATEGORY_SERVICE_URL));
-app.use("/v1/products", authMiddleware, createServiceProxy(PRODUCT_SERVICE_URL));
-app.use("/v1/users", authMiddleware, createServiceProxy(USER_SERVICE_URL));
-app.use("/v1/carts", authMiddleware, createServiceProxy(CART_SERVICE_URL));
-app.use("/v1/orders", authMiddleware, createServiceProxy(ORDER_SERVICE_URL));
-app.use("/v1/order-items", authMiddleware, createServiceProxy(ORDER_SERVICE_URL));
+app.use("/v1/brands", createServiceProxy(BRAND_SERVICE_URL));
+app.use("/v1/categories", createServiceProxy(CATEGORY_SERVICE_URL));
+app.use("/v1/products", createServiceProxy(PRODUCT_SERVICE_URL));
+app.use("/v1/users", createServiceProxy(USER_SERVICE_URL));
+app.use("/v1/carts", createServiceProxy(CART_SERVICE_URL));
+app.use("/v1/orders", createServiceProxy(ORDER_SERVICE_URL));
+app.use("/v1/order-items", createServiceProxy(ORDER_SERVICE_URL));
 
 app.get("/", (req: Request, res: Response) => {
     res.send("API Gateway is running. Swagger Docs available at /api-docs");
