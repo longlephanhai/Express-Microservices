@@ -11,8 +11,8 @@ resource "render_web_service" "brand" {
       auto_deploy     = true
       branch          = var.repo_branch
       repo_url        = var.repo_url
-      dockerfile_path = "docker/Dockerfile.brand"
-      docker_context  = "backend"
+      dockerfile_path = "backend/docker/Dockerfile.brand"
+      context         = "backend"
     }
   }
 
@@ -42,8 +42,8 @@ resource "render_web_service" "category" {
       auto_deploy     = true
       branch          = var.repo_branch
       repo_url        = var.repo_url
-      dockerfile_path = "docker/Dockerfile.category"
-      docker_context  = "backend"
+      dockerfile_path = "backend/docker/Dockerfile.category"
+      context         = "backend"
     }
   }
 
@@ -73,8 +73,8 @@ resource "render_web_service" "user" {
       auto_deploy     = true
       branch          = var.repo_branch
       repo_url        = var.repo_url
-      dockerfile_path = "docker/Dockerfile.user"
-      docker_context  = "backend"
+      dockerfile_path = "backend/docker/Dockerfile.user"
+      context         = "backend"
     }
   }
 
@@ -106,8 +106,8 @@ resource "render_web_service" "cart" {
       auto_deploy     = true
       branch          = var.repo_branch
       repo_url        = var.repo_url
-      dockerfile_path = "docker/Dockerfile.cart"
-      docker_context  = "backend"
+      dockerfile_path = "backend/docker/Dockerfile.cart"
+      context         = "backend"
     }
   }
 
@@ -137,8 +137,8 @@ resource "render_web_service" "order" {
       auto_deploy     = true
       branch          = var.repo_branch
       repo_url        = var.repo_url
-      dockerfile_path = "docker/Dockerfile.order"
-      docker_context  = "backend"
+      dockerfile_path = "backend/docker/Dockerfile.order"
+      context         = "backend"
     }
   }
 
@@ -168,8 +168,8 @@ resource "render_web_service" "product" {
       auto_deploy     = true
       branch          = var.repo_branch
       repo_url        = var.repo_url
-      dockerfile_path = "docker/Dockerfile.product"
-      docker_context  = "backend"
+      dockerfile_path = "backend/docker/Dockerfile.product"
+      context         = "backend"
     }
   }
 
@@ -201,8 +201,8 @@ resource "render_web_service" "gateway" {
       auto_deploy     = true
       branch          = var.repo_branch
       repo_url        = var.repo_url
-      dockerfile_path = "docker/Dockerfile.gateway"
-      docker_context  = "backend"
+      dockerfile_path = "backend/docker/Dockerfile.gateway"
+      context         = "backend"
     }
   }
 
