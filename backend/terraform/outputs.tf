@@ -1,3 +1,4 @@
+
 # RDS Outputs
 output "rds_endpoint" {
   description = "The connection endpoint for AWS RDS MySQL (host:port)"

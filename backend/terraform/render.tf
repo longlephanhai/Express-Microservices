@@ -13,6 +13,7 @@ resource "render_web_service" "brand" {
       repo_url        = var.repo_url
       dockerfile_path = "backend/docker/Dockerfile.brand"
       context         = "backend"
+
     }
   }
 
@@ -75,6 +76,7 @@ resource "render_web_service" "user" {
       repo_url        = var.repo_url
       dockerfile_path = "backend/docker/Dockerfile.user"
       context         = "backend"
+
     }
   }
 
@@ -108,6 +110,7 @@ resource "render_web_service" "cart" {
       repo_url        = var.repo_url
       dockerfile_path = "backend/docker/Dockerfile.cart"
       context         = "backend"
+
     }
   }
 
@@ -170,6 +173,7 @@ resource "render_web_service" "product" {
       repo_url        = var.repo_url
       dockerfile_path = "backend/docker/Dockerfile.product"
       context         = "backend"
+
     }
   }
 
@@ -203,6 +207,7 @@ resource "render_web_service" "gateway" {
       repo_url        = var.repo_url
       dockerfile_path = "backend/docker/Dockerfile.gateway"
       context         = "backend"
+
     }
   }
 

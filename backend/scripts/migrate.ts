@@ -19,6 +19,7 @@ async function migrate() {
         await db.authenticate();
         console.log(`Successfully connected to database: ${dbName}`);
 
+
         console.log("Initializing model schemas...");
         initBrand(db);
         initCategory(db);
@@ -30,7 +31,6 @@ async function migrate() {
 
         console.log("Creating and synchronizing tables on AWS RDS MySQL...");
         await db.sync({ alter: true });
-
         console.log("All tables synchronized successfully:");
         console.log(" - brands");
         console.log(" - categories");
@@ -44,6 +44,7 @@ async function migrate() {
         process.exit(0);
     } catch (error) {
         console.error("Database migration failed:", error);
+
         process.exit(1);
     }
 }

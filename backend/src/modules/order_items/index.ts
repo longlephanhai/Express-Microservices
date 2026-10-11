@@ -10,7 +10,7 @@ export function setupOrderItemHexagon(sequelize: Sequelize) {
   const repository = new OrderItemRepository(sequelize);
   const useCase = new OrderItemUseCase(repository, repository);
 
-  // Optional order existence checker (if Order model initialized on same sequelize instance)
+
   const orderExistsCheck = async (orderId: string): Promise<boolean> => {
     const orderModel = sequelize.models.Order;
     if (!orderModel) return true;
