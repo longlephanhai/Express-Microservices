@@ -4,7 +4,6 @@ import { Sequelize } from "sequelize";
 import { CartHttpServiceAPI } from "./infras/transport/http-service";
 import { CartUseCase } from "./usecase";
 import { MySQLCartRepository } from "./infras/repository/repo";
-import { authMiddleware } from "../../share/middleware/auth";
 
 export const setupCartHexagon = (sequelize: Sequelize) => {
 
@@ -16,7 +15,7 @@ export const setupCartHexagon = (sequelize: Sequelize) => {
 
     const router = Router();
 
-    router.use(authMiddleware);
+    // router.use(authMiddleware);
 
     router.get("/carts", httpService.listCartItemsAPI.bind(httpService));
     router.get("/carts/:id", httpService.getCartItemAPI.bind(httpService));

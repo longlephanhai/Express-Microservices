@@ -4,7 +4,6 @@ import { init } from "./infras/repository/sequelize/dto";
 import { OrderItemRepository } from "./infras/repository/sequelize";
 import { OrderItemUseCase } from "./usecase";
 import { OrderItemHttpService } from "./infras/transport";
-import { authMiddleware } from "../../share/middleware/auth";
 
 export function setupOrderItemHexagon(sequelize: Sequelize) {
   init(sequelize);
@@ -21,7 +20,7 @@ export function setupOrderItemHexagon(sequelize: Sequelize) {
 
   const http = new OrderItemHttpService(useCase, orderExistsCheck);
   const router = Router();
-  router.use(authMiddleware);
+  // router.use(authMiddleware);
   router.post("/order-items", http.createAPI.bind(http));
   router.get("/order-items", http.listAPI.bind(http));
   router.get("/order-items/:id", http.detailAPI.bind(http));
