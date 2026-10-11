@@ -66,7 +66,7 @@ resource "aws_route_table_association" "sub2" {
 }
 
 resource "aws_db_subnet_group" "rds" {
-  name        = "${var.environment}-rds-subnet-group"
+  name_prefix = "${var.environment}-rds-subnet-"
   description = "Subnet group for RDS MySQL"
   subnet_ids  = [aws_subnet.rds_subnet_1.id, aws_subnet.rds_subnet_2.id]
 
@@ -76,7 +76,7 @@ resource "aws_db_subnet_group" "rds" {
 }
 
 resource "aws_security_group" "rds" {
-  name        = "${var.environment}-rds-sg"
+  name_prefix = "${var.environment}-rds-sg-"
   description = "Allow inbound MySQL traffic from Render and authorized networks"
   vpc_id      = aws_vpc.rds_vpc.id
 
@@ -103,7 +103,7 @@ resource "aws_security_group" "rds" {
 
 
 resource "aws_db_parameter_group" "mysql8" {
-  name        = "${var.environment}-mysql8-params"
+  name_prefix = "${var.environment}-mysql8-"
   family      = "mysql8.0"
   description = "Custom parameter group for MySQL 8.0"
 
@@ -124,7 +124,7 @@ resource "aws_db_parameter_group" "mysql8" {
 
 
 resource "aws_db_instance" "mysql" {
-  identifier            = "${var.environment}-mysql-db"
+  identifier_prefix     = "${var.environment}-mysql-db-"
   engine                = "mysql"
   engine_version        = "8.0"
   instance_class        = var.db_instance_class
