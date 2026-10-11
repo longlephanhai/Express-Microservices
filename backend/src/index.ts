@@ -1,5 +1,6 @@
 import express from "express";
 import { config } from "dotenv";
+import cors from "cors";
 
 import { sequelize } from "./share/component/sequelize";
 import { setupCategoryHexagon } from "./modules/category";
@@ -21,6 +22,7 @@ config();
         await sequelize.authenticate();
         console.log("Database connection has been established successfully.");
         const app = express();
+        app.use(cors());
         const PORT = process.env.PORT || 3000;
         app.use(express.json());
 
