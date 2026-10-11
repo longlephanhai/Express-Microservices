@@ -2,7 +2,7 @@ import express from "express";
 import { config } from "dotenv";
 import { createSequelize } from "../../share/component/sequelize";
 import { setupOrderHexagon } from ".";
-
+import { setupOrderItemHexagon } from "../order_items";
 
 config();
 
@@ -13,21 +13,23 @@ const DB_NAME = process.env.DB_ORDER_NAME || process.env.DB_NAME;
     try {
         const db = createSequelize(DB_NAME);
         await db.authenticate();
-        console.log(`[Cart Service] Database connected successfully (${DB_NAME}).`);
+        console.log(`[Order Service] Database connected successfully (${DB_NAME}).`);
 
         const app = express();
         app.use(express.json());
 
         app.get("/health", (req, res) => {
-            res.json({ service: "cart-service", status: "ok" });
+            res.json({ service: "order-service", status: "ok" });
         });
 
         app.use("/v1", setupOrderHexagon(db));
+        app.use("/v1", setupOrderItemHexagon(db));
 
         app.listen(PORT, () => {
-            console.log(`[Cart Service] Running at http://localhost:${PORT}`);
+            console.log(`[Order Service] Running at http://localhost:${PORT}`);
         });
     } catch (error) {
-        console.error("[Cart Service] Failed to start:", error);
+        console.error("[Order Service] Failed to start:", error);
     }
 })();
+

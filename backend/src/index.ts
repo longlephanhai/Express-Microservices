@@ -1,5 +1,6 @@
 import express from "express";
 import { config } from "dotenv";
+import cors from "cors";
 
 import { sequelize } from "./share/component/sequelize";
 import { setupCategoryHexagon } from "./modules/category";
@@ -22,6 +23,7 @@ config();
         console.log("Database connection has been established successfully.");
         const app = express();
         const PORT = process.env.PORT || 3000;
+        app.use(cors());
         app.use(express.json());
 
         // Setup Swagger UI

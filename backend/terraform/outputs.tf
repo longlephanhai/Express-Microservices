@@ -1,6 +1,4 @@
-# ------------------------------------------------------------------------------
-# AWS RDS MySQL Outputs
-# ------------------------------------------------------------------------------
+# RDS Outputs
 output "rds_endpoint" {
   description = "The connection endpoint for AWS RDS MySQL (host:port)"
   value       = aws_db_instance.mysql.endpoint
@@ -26,9 +24,7 @@ output "rds_username" {
   value       = aws_db_instance.mysql.username
 }
 
-# ------------------------------------------------------------------------------
 # Render Outputs
-# ------------------------------------------------------------------------------
 output "api_gateway_url" {
   description = "Public URL of the API Gateway on Render"
   value       = var.enable_render ? render_web_service.gateway[0].url : null

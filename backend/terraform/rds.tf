@@ -1,13 +1,7 @@
-# ------------------------------------------------------------------------------
-# Data Sources
-# ------------------------------------------------------------------------------
 data "aws_availability_zones" "available" {
   state = "available"
 }
 
-# ------------------------------------------------------------------------------
-# Dedicated VPC for RDS MySQL
-# ------------------------------------------------------------------------------
 resource "aws_vpc" "rds_vpc" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_hostnames = true
@@ -71,9 +65,6 @@ resource "aws_route_table_association" "sub2" {
   route_table_id = aws_route_table.public_rt.id
 }
 
-# ------------------------------------------------------------------------------
-# DB Subnet Group
-# ------------------------------------------------------------------------------
 resource "aws_db_subnet_group" "rds" {
   name        = "${var.environment}-rds-subnet-group"
   description = "Subnet group for RDS MySQL"
@@ -84,9 +75,6 @@ resource "aws_db_subnet_group" "rds" {
   }
 }
 
-# ------------------------------------------------------------------------------
-# Security Group
-# ------------------------------------------------------------------------------
 resource "aws_security_group" "rds" {
   name        = "${var.environment}-rds-sg"
   description = "Allow inbound MySQL traffic from Render and authorized networks"
@@ -113,9 +101,7 @@ resource "aws_security_group" "rds" {
   }
 }
 
-# ------------------------------------------------------------------------------
-# Parameter Group for MySQL 8.0
-# ------------------------------------------------------------------------------
+
 resource "aws_db_parameter_group" "mysql8" {
   name        = "${var.environment}-mysql8-params"
   family      = "mysql8.0"
@@ -136,9 +122,7 @@ resource "aws_db_parameter_group" "mysql8" {
   }
 }
 
-# ------------------------------------------------------------------------------
-# AWS RDS MySQL Instance (Single Instance - Standard RDS, NOT Aurora)
-# ------------------------------------------------------------------------------
+
 resource "aws_db_instance" "mysql" {
   identifier            = "${var.environment}-mysql-db"
   engine                = "mysql"

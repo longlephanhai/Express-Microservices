@@ -1,6 +1,3 @@
-# ------------------------------------------------------------------------------
-# Microservices on Render (Web Services)
-# ------------------------------------------------------------------------------
 
 # 1. Brand Service
 resource "render_web_service" "brand" {
@@ -15,7 +12,7 @@ resource "render_web_service" "brand" {
       branch          = var.repo_branch
       repo_url        = var.repo_url
       dockerfile_path = "docker/Dockerfile.brand"
-      docker_context  = "."
+      docker_context  = "backend"
     }
   }
 
@@ -46,7 +43,7 @@ resource "render_web_service" "category" {
       branch          = var.repo_branch
       repo_url        = var.repo_url
       dockerfile_path = "docker/Dockerfile.category"
-      docker_context  = "."
+      docker_context  = "backend"
     }
   }
 
@@ -77,7 +74,7 @@ resource "render_web_service" "user" {
       branch          = var.repo_branch
       repo_url        = var.repo_url
       dockerfile_path = "docker/Dockerfile.user"
-      docker_context  = "."
+      docker_context  = "backend"
     }
   }
 
@@ -110,7 +107,7 @@ resource "render_web_service" "cart" {
       branch          = var.repo_branch
       repo_url        = var.repo_url
       dockerfile_path = "docker/Dockerfile.cart"
-      docker_context  = "."
+      docker_context  = "backend"
     }
   }
 
@@ -141,7 +138,7 @@ resource "render_web_service" "order" {
       branch          = var.repo_branch
       repo_url        = var.repo_url
       dockerfile_path = "docker/Dockerfile.order"
-      docker_context  = "."
+      docker_context  = "backend"
     }
   }
 
@@ -172,7 +169,7 @@ resource "render_web_service" "product" {
       branch          = var.repo_branch
       repo_url        = var.repo_url
       dockerfile_path = "docker/Dockerfile.product"
-      docker_context  = "."
+      docker_context  = "backend"
     }
   }
 
@@ -205,7 +202,7 @@ resource "render_web_service" "gateway" {
       branch          = var.repo_branch
       repo_url        = var.repo_url
       dockerfile_path = "docker/Dockerfile.gateway"
-      docker_context  = "."
+      docker_context  = "backend"
     }
   }
 

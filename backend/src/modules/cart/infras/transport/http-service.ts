@@ -14,10 +14,16 @@ export class CartHttpServiceAPI {
                 error: error.message
             });
         }
-        const result = await this.useCase.createCartItem(data);
-        res.status(201).json({
-            data: result
-        });
+        try {
+            const result = await this.useCase.createCartItem(data);
+            res.status(201).json({
+                data: result
+            });
+        } catch (err) {
+            res.status(400).json({
+                error: (err as Error).message
+            });
+        }
     }
 
     async getCartItemAPI(req: Request, res: Response) {
@@ -29,10 +35,16 @@ export class CartHttpServiceAPI {
             });
         }
 
-        const result = await this.useCase.getCartItem(id);
-        res.status(200).json({
-            data: result
-        });
+        try {
+            const result = await this.useCase.getCartItem(id);
+            res.status(200).json({
+                data: result
+            });
+        } catch (err) {
+            res.status(404).json({
+                error: (err as Error).message
+            });
+        }
     }
 
     async updateCartItemAPI(req: Request, res: Response) {
@@ -51,10 +63,16 @@ export class CartHttpServiceAPI {
             });
         }
 
-        const result = await this.useCase.updateCartItem(id, data);
-        res.status(200).json({
-            data: result
-        });
+        try {
+            const result = await this.useCase.updateCartItem(id, data);
+            res.status(200).json({
+                data: result
+            });
+        } catch (err) {
+            res.status(400).json({
+                error: (err as Error).message
+            });
+        }
     }
 
     async deleteCartItemAPI(req: Request, res: Response) {
@@ -66,10 +84,16 @@ export class CartHttpServiceAPI {
             });
         }
 
-        const result = await this.useCase.deleteCartItem(id);
-        res.status(200).json({
-            data: result
-        });
+        try {
+            const result = await this.useCase.deleteCartItem(id);
+            res.status(200).json({
+                data: result
+            });
+        } catch (err) {
+            res.status(400).json({
+                error: (err as Error).message
+            });
+        }
     }
 
     async listCartItemsAPI(req: Request, res: Response) {
@@ -88,14 +112,20 @@ export class CartHttpServiceAPI {
             });
         }
 
-        const paging = pagingResult.data;
-        const cond = condResult.data;
-        const result = await this.useCase.listCartItems(cond, paging);
+        try {
+            const paging = pagingResult.data;
+            const cond = condResult.data;
+            const result = await this.useCase.listCartItems(cond, paging);
 
-        res.status(200).json({
-            data: result,
-            paging,
-            filter: cond
-        });
+            res.status(200).json({
+                data: result,
+                paging,
+                filter: cond
+            });
+        } catch (err) {
+            res.status(500).json({
+                error: (err as Error).message
+            });
+        }
     }
 }

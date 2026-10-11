@@ -1,5 +1,6 @@
 import express, { Request, Response } from "express";
 import { config } from "dotenv";
+import cors from "cors";
 import axios, { AxiosResponse } from "axios";
 import { setupSwagger } from "../docs/swagger";
 
@@ -15,6 +16,7 @@ const USER_SERVICE_URL = process.env.USER_SERVICE_URL || "http://localhost:3004"
 const CART_SERVICE_URL = process.env.CART_SERVICE_URL || "http://localhost:3005";
 const ORDER_SERVICE_URL = process.env.ORDER_SERVICE_URL || "http://localhost:3006";
 
+app.use(cors());
 app.use(express.json());
 
 setupSwagger(app);
@@ -77,6 +79,7 @@ app.use("/v1/auth", createServiceProxy(USER_SERVICE_URL));
 app.use("/v1/users", createServiceProxy(USER_SERVICE_URL));
 app.use("/v1/carts", createServiceProxy(CART_SERVICE_URL));
 app.use("/v1/orders", createServiceProxy(ORDER_SERVICE_URL));
+app.use("/v1/order-items", createServiceProxy(ORDER_SERVICE_URL));
 
 app.get("/", (req: Request, res: Response) => {
     res.send("API Gateway is running. Swagger Docs available at /api-docs");

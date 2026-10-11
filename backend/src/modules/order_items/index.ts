@@ -2,9 +2,30 @@ import { Router } from "express";
 import { Sequelize } from "sequelize";
 import { init } from "./infras/repository/sequelize/dto";
 import { OrderItemRepository } from "./infras/repository/sequelize";
+import { OrderItemUseCase } from "./usecase";
 import { OrderItemHttpService } from "./infras/transport";
+
 export function setupOrderItemHexagon(sequelize: Sequelize) {
-  init(sequelize); const http = new OrderItemHttpService(new OrderItemRepository(sequelize), sequelize); const router = Router();
-  router.post("/order-items", http.createAPI.bind(http)); router.get("/order-items", http.listAPI.bind(http));
-  router.get("/order-items/:id", http.detailAPI.bind(http)); router.patch("/order-items/:id", http.updateAPI.bind(http)); router.delete("/order-items/:id", http.deleteAPI.bind(http)); return router;
+  init(sequelize);
+  const repository = new OrderItemRepository(sequelize);
+  const useCase = new OrderItemUseCase(repository, repository);
+
+  // Optional order existence checker (if Order model initialized on same sequelize instance)
+  const orderExistsCheck = async (orderId: string): Promise<boolean> => {
+    const orderModel = sequelize.models.Order;
+    if (!orderModel) return true;
+    const order = await orderModel.findByPk(orderId);
+    return !!order && (order as any).status !== "deleted";
+  };
+
+  const http = new OrderItemHttpService(useCase, orderExistsCheck);
+  const router = Router();
+  router.post("/order-items", http.createAPI.bind(http));
+  router.get("/order-items", http.listAPI.bind(http));
+  router.get("/order-items/:id", http.detailAPI.bind(http));
+  router.patch("/order-items/:id", http.updateAPI.bind(http));
+  router.delete("/order-items/:id", http.deleteAPI.bind(http));
+
+  return router;
 }
+
