@@ -26,9 +26,9 @@ export const setupUserHexagon = (sequelize: Sequelize) => {
     router.post('/auth/login', httpService.loginUserAPI.bind(httpService));
 
     // Protected user routes
-    router.get('/auth/me', httpService.getProfileAPI.bind(httpService));
-    router.get('/users/profile', httpService.getProfileAPI.bind(httpService));
-    router.get('/users/me', httpService.getProfileAPI.bind(httpService));
+    router.get('/auth/me', authMiddleware, httpService.getProfileAPI.bind(httpService));
+    router.get('/users/profile', authMiddleware, httpService.getProfileAPI.bind(httpService));
+    router.get('/users/me', authMiddleware, httpService.getProfileAPI.bind(httpService));
 
     return router;
 };

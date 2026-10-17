@@ -8,6 +8,7 @@ import { DeleteBrandCmdHandler } from "./usecase/delete-brand";
 import { GetBrandDetailQuery } from "./usecase/get-brand-detail";
 import { ListBrandQuery } from "./usecase/list-brand";
 import { UpdateBrandCmdHandler } from "./usecase/update-brand";
+import { authMiddleware } from "../../share/middleware/auth";
 
 
 export const setupBrandHexagon = (sequelize: Sequelize) => {
@@ -30,13 +31,15 @@ export const setupBrandHexagon = (sequelize: Sequelize) => {
   );
 
   const router = Router();
-  // router.use(authMiddleware);
 
-  router.post('/brands', httpService.createAPI.bind(httpService));
-  router.get('/brands/:id', httpService.getDetailAPI.bind(httpService));
+  // Public read-only routes
   router.get('/brands', httpService.listAPI.bind(httpService));
-  router.patch('/brands/:id', httpService.updateAPI.bind(httpService));
-  router.delete('/brands/:id', httpService.deleteAPI.bind(httpService));
+  router.get('/brands/:id', httpService.getDetailAPI.bind(httpService));
+
+  // Protected routes (Require authentication for mutations)
+  router.post('/brands', authMiddleware, httpService.createAPI.bind(httpService));
+  router.patch('/brands/:id', authMiddleware, httpService.updateAPI.bind(httpService));
+  router.delete('/brands/:id', authMiddleware, httpService.deleteAPI.bind(httpService));
 
   return router;
 };

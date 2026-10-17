@@ -5,6 +5,7 @@ import { IBrandQueryRepository, ICategoryQueryRepository } from "./interface";
 import { ProductUseCase } from "./usecase";
 import { ProductCommandHTTPServiceAPI, ProductQueryHTTPServiceAPI } from "./insfra/transport/http-service";
 import { Router } from "express";
+import { authMiddleware } from "../../share/middleware/auth";
 
 
 export function setUpProductHexagon(
@@ -25,13 +26,15 @@ export function setUpProductHexagon(
     const productCommandHttpService = new ProductCommandHTTPServiceAPI(productUseCase);
 
     const router = Router();
-    // router.use(authMiddleware);
 
-    router.post('/products', productCommandHttpService.createNewProductAPI.bind(productCommandHttpService));
+    // Public read-only routes
     router.get('/products', productQueryHttpService.listProductsAPI.bind(productQueryHttpService));
     router.get('/products/:id', productQueryHttpService.getDetailProductAPI.bind(productQueryHttpService));
-    router.patch('/products/:id', productCommandHttpService.updateProductAPI.bind(productCommandHttpService));
-    router.delete('/products/:id', productCommandHttpService.deleteProductAPI.bind(productCommandHttpService));
+
+    // Protected routes (Require authentication for mutations)
+    router.post('/products', authMiddleware, productCommandHttpService.createNewProductAPI.bind(productCommandHttpService));
+    router.patch('/products/:id', authMiddleware, productCommandHttpService.updateProductAPI.bind(productCommandHttpService));
+    router.delete('/products/:id', authMiddleware, productCommandHttpService.deleteProductAPI.bind(productCommandHttpService));
 
     return router;
 
