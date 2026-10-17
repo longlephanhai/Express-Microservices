@@ -1,8 +1,8 @@
 import express from "express";
-import { config } from "dotenv";
+import "./share/component/env";
 import cors from "cors";
 
-import { sequelize } from "./share/component/sequelize";
+import { sequelize, syncDatabase } from "./share/component/sequelize";
 import { setupCategoryHexagon } from "./modules/category";
 import { setupCartHexagon } from "./modules/cart";
 import { setupBrandHexagon } from "./modules/brand";
@@ -13,9 +13,6 @@ import { setupUserHexagon } from "./modules/user";
 import { setupOrderHexagon } from "./modules/orders";
 import { setupOrderItemHexagon } from "./modules/order_items";
 import { authMiddleware } from "./share/middleware/auth";
-
-
-config();
 
 
 (async () => {
@@ -51,6 +48,8 @@ config();
         app.use('/v1', setupOrderHexagon(sequelize)); 
         app.use('/v1', setupOrderItemHexagon(sequelize));
 
+        // Auto-synchronize table schemas into the database
+        await syncDatabase(sequelize);
 
         app.listen(PORT, () => {
             console.log(`Server is running at http://localhost:${PORT}`);

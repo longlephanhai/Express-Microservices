@@ -1,6 +1,6 @@
 import express from "express";
 import { config } from "dotenv";
-import { createSequelize } from "../../share/component/sequelize";
+import { createSequelize, syncDatabase } from "../../share/component/sequelize";
 import { setupBrandHexagon } from "./index";
 
 config();
@@ -22,6 +22,7 @@ const DB_NAME = process.env.DB_BRAND_NAME || process.env.DB_NAME;
         });
 
         app.use("/v1", setupBrandHexagon(db));
+        await syncDatabase(db);
 
         app.listen(PORT, () => {
             console.log(`[Brand Service] Running at http://localhost:${PORT}`);

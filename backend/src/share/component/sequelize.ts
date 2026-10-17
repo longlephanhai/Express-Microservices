@@ -1,7 +1,5 @@
 import { Sequelize } from "sequelize";
-import { config } from "dotenv";
-
-config();
+import "./env";
 
 export function createSequelize(databaseName?: string) {
     return new Sequelize({
@@ -22,3 +20,15 @@ export function createSequelize(databaseName?: string) {
 }
 
 export const sequelize = createSequelize();
+
+export async function syncDatabase(db: Sequelize = sequelize) {
+    if (process.env.DB_SYNC_ALTER === 'true' || process.env.DB_SYNC === 'true') {
+        try {
+            console.log("[Database] Synchronizing table schema with Sequelize (alter: true)...");
+            await db.sync({ alter: true });
+            console.log("[Database] All tables synchronized successfully!");
+        } catch (error) {
+            console.error("[Database] Error synchronizing table schema:", error);
+        }
+    }
+}

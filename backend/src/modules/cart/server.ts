@@ -1,6 +1,6 @@
 import express from "express";
 import { config } from "dotenv";
-import { createSequelize } from "../../share/component/sequelize";
+import { createSequelize, syncDatabase } from "../../share/component/sequelize";
 import { setupCartHexagon } from ".";
 
 
@@ -23,6 +23,7 @@ const DB_NAME = process.env.DB_CART_NAME || process.env.DB_NAME;
         });
 
         app.use("/v1", setupCartHexagon(db));
+        await syncDatabase(db);
 
         app.listen(PORT, () => {
             console.log(`[Cart Service] Running at http://localhost:${PORT}`);

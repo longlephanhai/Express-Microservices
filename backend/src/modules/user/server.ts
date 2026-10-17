@@ -1,6 +1,6 @@
 import express from "express";
 import { config } from "dotenv";
-import { createSequelize } from "../../share/component/sequelize";
+import { createSequelize, syncDatabase } from "../../share/component/sequelize";
 import { setupUserHexagon } from "./index";
 
 config();
@@ -22,6 +22,7 @@ const DB_NAME = process.env.DB_USER_NAME || process.env.DB_NAME;
         });
 
         app.use("/v1", setupUserHexagon(db));
+        await syncDatabase(db);
 
         app.listen(PORT, () => {
             console.log(`[User Service] Running at http://localhost:${PORT}`);

@@ -1,6 +1,6 @@
 import express from "express";
 import { config } from "dotenv";
-import { createSequelize } from "../../share/component/sequelize";
+import { createSequelize, syncDatabase } from "../../share/component/sequelize";
 import { setUpProductHexagon } from "./index";
 import { RPCBrandQueryRepository, RPCCategoryQueryRepository } from "./insfra/repository/rpc";
 
@@ -28,6 +28,7 @@ const CATEGORY_SERVICE_URL = process.env.CATEGORY_SERVICE_URL || "http://localho
         const categoryRpcRepo = new RPCCategoryQueryRepository(CATEGORY_SERVICE_URL);
 
         app.use("/v1", setUpProductHexagon(db, brandRpcRepo, categoryRpcRepo));
+        await syncDatabase(db);
 
         app.listen(PORT, () => {
             console.log(`[Product Service] Running at http://localhost:${PORT}`);

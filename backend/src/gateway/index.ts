@@ -1,12 +1,10 @@
 import express, { Request, Response } from "express";
-import { config } from "dotenv";
+import "../share/component/env";
 import cors from "cors";
 import axios, { AxiosResponse } from "axios";
 import { setupSwagger } from "../docs/swagger";
 
 import { authMiddleware } from "../share/middleware/auth";
-
-config();
 
 const app = express();
 const PORT = process.env.GATEWAY_PORT || 3000;
