@@ -1,10 +1,9 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import type { Order, OrderState, OrderFilters, OrderUpdateInput } from '../../types';
 import { orderApi } from '../../api/orderApi';
-import { MOCK_ORDERS } from '../../utils/mockData';
 
 const initialState: OrderState = {
-  items: MOCK_ORDERS,
+  items: [],
   selectedOrder: null,
   filters: {
     status: '',
@@ -16,7 +15,7 @@ const initialState: OrderState = {
   paging: {
     page: 1,
     limit: 10,
-    total: MOCK_ORDERS.length,
+    total: 0,
   },
   status: 'idle',
   error: null,
@@ -24,27 +23,36 @@ const initialState: OrderState = {
 
 export const fetchOrdersAsync = createAsyncThunk(
   'orders/fetchOrders',
-  async (filters: OrderFilters | undefined) => {
+  async (filters: OrderFilters | undefined, { rejectWithValue }) => {
     try {
       const res = await orderApi.getOrders(filters);
       return res;
-    } catch {
-      return {
-        data: MOCK_ORDERS,
-        paging: { page: 1, limit: 10, total: MOCK_ORDERS.length },
-      };
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || 'Không thể tải đơn hàng');
     }
   }
 );
 
 export const updateOrderStatusAsync = createAsyncThunk(
   'orders/updateOrderStatus',
-  async ({ id, input }: { id: string; input: OrderUpdateInput }) => {
+  async ({ id, input }: { id: string; input: OrderUpdateInput }, { rejectWithValue }) => {
     try {
       await orderApi.updateOrderStatus(id, input);
       return { id, input };
-    } catch {
-      return { id, input };
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || 'Không thể cập nhật trạng thái đơn hàng');
+    }
+  }
+);
+
+export const deleteOrderAsync = createAsyncThunk(
+  'orders/deleteOrder',
+  async (id: string, { rejectWithValue }) => {
+    try {
+      await orderApi.deleteOrder(id);
+      return id;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || 'Không thể xóa đơn hàng');
     }
   }
 );
@@ -62,20 +70,21 @@ export const orderSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // Fetch orders
       .addCase(fetchOrdersAsync.pending, (state) => {
         state.status = 'loading';
+        state.error = null;
       })
       .addCase(fetchOrdersAsync.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        if (Array.isArray(action.payload.data) && action.payload.data.length > 0) {
-          state.items = action.payload.data;
-          state.paging.total = action.payload.paging?.total ?? action.payload.data.length;
-        }
+        state.items = action.payload.data || [];
+        state.paging.total = action.payload.paging?.total ?? (action.payload.data?.length || 0);
       })
       .addCase(fetchOrdersAsync.rejected, (state, action) => {
         state.status = 'failed';
         state.error = (action.payload as string) || 'Không thể tải đơn hàng';
       })
+      // Update order status
       .addCase(updateOrderStatusAsync.fulfilled, (state, action) => {
         const index = state.items.findIndex((item) => item.id === action.payload.id);
         if (index !== -1) {
@@ -90,6 +99,13 @@ export const orderSlice = createSlice({
               ...action.payload.input,
             };
           }
+        }
+      })
+      // Delete order
+      .addCase(deleteOrderAsync.fulfilled, (state, action) => {
+        state.items = state.items.filter((item) => item.id !== action.payload);
+        if (state.selectedOrder?.id === action.payload) {
+          state.selectedOrder = null;
         }
       });
   },

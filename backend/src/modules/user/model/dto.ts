@@ -51,7 +51,8 @@ export const userCondDTOSchema = z.object({
     address: z.string().nullable().optional(),
     gender: z.nativeEnum(Gender, { message: ErrGenderInvalid.message }).optional(),
     role: z.nativeEnum(Role, { message: ErrRoleInvalid.message }).optional(),
-    status: z.nativeEnum(Status).optional()
+    status: z.nativeEnum(Status).optional(),
+    search: z.string().optional(),
 });
 
 export type UserCondDTO = z.infer<typeof userCondDTOSchema>;

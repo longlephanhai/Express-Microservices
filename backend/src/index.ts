@@ -30,6 +30,21 @@ import { setupOrderItemHexagon } from "./modules/order_items";
             res.send("Hello from Express + TypeScript!");
         });
 
+        app.get("/health", (req: express.Request, res: express.Response) => {
+            res.json({
+                service: "express-microservices",
+                status: "ok",
+                upstreams: {
+                    brand: `http://localhost:${PORT}/v1/brands`,
+                    category: `http://localhost:${PORT}/v1/categories`,
+                    product: `http://localhost:${PORT}/v1/products`,
+                    user: `http://localhost:${PORT}/v1/users`,
+                    cart: `http://localhost:${PORT}/v1/carts`,
+                    order: `http://localhost:${PORT}/v1/orders`,
+                },
+            });
+        });
+
         const brandRpcRepo = new RPCBrandQueryRepository();
         const categoryRpcRepo = new RPCCategoryQueryRepository();
 

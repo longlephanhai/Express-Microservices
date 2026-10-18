@@ -43,19 +43,7 @@ export const DashboardPage: React.FC = () => {
       setHealthStatus('online');
     } catch {
       setHealthStatus('offline');
-      // Fallback mock health info for demo visualization
-      setHealth({
-        service: 'api-gateway',
-        status: 'ok',
-        upstreams: {
-          brand: 'http://localhost:3001',
-          category: 'http://localhost:3002',
-          product: 'http://localhost:3003',
-          user: 'http://localhost:3004',
-          cart: 'http://localhost:3005',
-          order: 'http://localhost:3006',
-        },
-      });
+      setHealth(null);
     } finally {
       setHealthLoading(false);
     }
@@ -196,12 +184,12 @@ export const DashboardPage: React.FC = () => {
           }}
         >
           {[
-            { name: 'Brand Service', port: 3001, url: health?.upstreams.brand, desc: 'Thương hiệu' },
-            { name: 'Category Service', port: 3002, url: health?.upstreams.category, desc: 'Danh mục' },
-            { name: 'Product Service', port: 3003, url: health?.upstreams.product, desc: 'Sản phẩm & Kho' },
-            { name: 'User Service', port: 3004, url: health?.upstreams.user, desc: 'Xác thực & JWT' },
-            { name: 'Cart Service', port: 3005, url: health?.upstreams.cart, desc: 'Giỏ hàng' },
-            { name: 'Order Service', port: 3006, url: health?.upstreams.order, desc: 'Đơn hàng' },
+            { name: 'Brand Service', port: 3001, url: health?.upstreams?.brand, desc: 'Thương hiệu' },
+            { name: 'Category Service', port: 3002, url: health?.upstreams?.category, desc: 'Danh mục' },
+            { name: 'Product Service', port: 3003, url: health?.upstreams?.product, desc: 'Sản phẩm & Kho' },
+            { name: 'User Service', port: 3004, url: health?.upstreams?.user, desc: 'Xác thực & JWT' },
+            { name: 'Cart Service', port: 3005, url: health?.upstreams?.cart, desc: 'Giỏ hàng' },
+            { name: 'Order Service', port: 3006, url: health?.upstreams?.order, desc: 'Đơn hàng' },
           ].map((svc) => (
             <div
               key={svc.name}

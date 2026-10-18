@@ -1,10 +1,9 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import type { Category, CategoryState, CategoryCreateInput, CategoryUpdateInput } from '../../types';
 import { categoryApi } from '../../api/categoryApi';
-import { MOCK_CATEGORIES } from '../../utils/mockData';
 
 const initialState: CategoryState = {
-  items: MOCK_CATEGORIES,
+  items: [],
   selectedCategory: null,
   status: 'idle',
   error: null,
@@ -12,48 +11,49 @@ const initialState: CategoryState = {
 
 export const fetchCategoriesAsync = createAsyncThunk(
   'categories/fetchCategories',
-  async () => {
+  async (_, { rejectWithValue }) => {
     try {
       const res = await categoryApi.getCategories();
       return res;
-    } catch {
-      return { data: MOCK_CATEGORIES };
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || 'Không thể tải danh mục');
     }
   }
 );
 
 export const createCategoryAsync = createAsyncThunk(
   'categories/createCategory',
-  async (input: CategoryCreateInput) => {
+  async (input: CategoryCreateInput, { rejectWithValue }) => {
     try {
-      await categoryApi.createCategory(input);
-      return input;
-    } catch {
-      return input;
+      const res = await categoryApi.createCategory(input);
+      const createdId = typeof res.data === 'string' ? res.data : (res.data as any)?.id || `c-${Date.now()}`;
+      return { id: createdId, input };
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || 'Không thể tạo danh mục');
     }
   }
 );
 
 export const updateCategoryAsync = createAsyncThunk(
   'categories/updateCategory',
-  async ({ id, input }: { id: string; input: CategoryUpdateInput }) => {
+  async ({ id, input }: { id: string; input: CategoryUpdateInput }, { rejectWithValue }) => {
     try {
       await categoryApi.updateCategory(id, input);
       return { id, input };
-    } catch {
-      return { id, input };
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || 'Không thể cập nhật danh mục');
     }
   }
 );
 
 export const deleteCategoryAsync = createAsyncThunk(
   'categories/deleteCategory',
-  async (id: string) => {
+  async (id: string, { rejectWithValue }) => {
     try {
       await categoryApi.deleteCategory(id);
       return id;
-    } catch {
-      return id;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || 'Không thể xóa danh mục');
     }
   }
 );
@@ -70,21 +70,21 @@ export const categorySlice = createSlice({
     builder
       .addCase(fetchCategoriesAsync.pending, (state) => {
         state.status = 'loading';
+        state.error = null;
       })
       .addCase(fetchCategoriesAsync.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        if (Array.isArray(action.payload.data) && action.payload.data.length > 0) {
-          state.items = action.payload.data;
-        }
+        state.items = action.payload.data || [];
       })
       .addCase(fetchCategoriesAsync.rejected, (state, action) => {
         state.status = 'failed';
         state.error = (action.payload as string) || 'Không thể tải danh mục';
       })
       .addCase(createCategoryAsync.fulfilled, (state, action) => {
+        const { id, input } = action.payload;
         const newCategory: Category = {
-          id: `c-${Date.now()}`,
-          ...action.payload,
+          id,
+          ...input,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };

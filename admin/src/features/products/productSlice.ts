@@ -7,10 +7,9 @@ import type {
   ProductFilters,
 } from '../../types';
 import { productApi } from '../../api/productApi';
-import { MOCK_PRODUCTS } from '../../utils/mockData';
 
 const initialState: ProductState = {
-  items: MOCK_PRODUCTS,
+  items: [],
   selectedProduct: null,
   filters: {
     search: '',
@@ -23,7 +22,7 @@ const initialState: ProductState = {
   paging: {
     page: 1,
     limit: 10,
-    total: MOCK_PRODUCTS.length,
+    total: 0,
   },
   status: 'idle',
   error: null,
@@ -31,55 +30,49 @@ const initialState: ProductState = {
 
 export const fetchProductsAsync = createAsyncThunk(
   'products/fetchProducts',
-  async (filters: ProductFilters | undefined) => {
+  async (filters: ProductFilters | undefined, { rejectWithValue }) => {
     try {
       const res = await productApi.getProducts(filters);
       return res;
-    } catch {
-      // Graceful fallback: return mock data so UI is always functional
-      return {
-        data: MOCK_PRODUCTS,
-        paging: { page: 1, limit: 10, total: MOCK_PRODUCTS.length },
-      };
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || 'Không thể tải danh sách sản phẩm');
     }
   }
 );
 
 export const createProductAsync = createAsyncThunk(
   'products/createProduct',
-  async (input: ProductCreateInput) => {
+  async (input: ProductCreateInput, { rejectWithValue }) => {
     try {
       const res = await productApi.createProduct(input);
-      return { input, res };
-    } catch {
-      // Local fallback
-      return { input, res: { data: 'mock-created-id' } };
+      const createdId = typeof res.data === 'string' ? res.data : (res.data as any)?.id || `p-${Date.now()}`;
+      return { id: createdId, input };
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || 'Không thể tạo sản phẩm');
     }
   }
 );
 
 export const updateProductAsync = createAsyncThunk(
   'products/updateProduct',
-  async ({ id, input }: { id: string; input: ProductUpdateInput }) => {
+  async ({ id, input }: { id: string; input: ProductUpdateInput }, { rejectWithValue }) => {
     try {
       await productApi.updateProduct(id, input);
       return { id, input };
-    } catch {
-      // Local fallback
-      return { id, input };
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || 'Không thể cập nhật sản phẩm');
     }
   }
 );
 
 export const deleteProductAsync = createAsyncThunk(
   'products/deleteProduct',
-  async (id: string) => {
+  async (id: string, { rejectWithValue }) => {
     try {
       await productApi.deleteProduct(id);
       return id;
-    } catch {
-      // Local fallback
-      return id;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || 'Không thể xóa sản phẩm');
     }
   }
 );
@@ -103,13 +96,12 @@ export const productSlice = createSlice({
       // Fetch Products
       .addCase(fetchProductsAsync.pending, (state) => {
         state.status = 'loading';
+        state.error = null;
       })
       .addCase(fetchProductsAsync.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        if (Array.isArray(action.payload.data) && action.payload.data.length > 0) {
-          state.items = action.payload.data;
-          state.paging.total = action.payload.paging?.total ?? action.payload.data.length;
-        }
+        state.items = action.payload.data || [];
+        state.paging.total = action.payload.paging?.total ?? (action.payload.data?.length || 0);
       })
       .addCase(fetchProductsAsync.rejected, (state, action) => {
         state.status = 'failed';
@@ -117,9 +109,10 @@ export const productSlice = createSlice({
       })
       // Create Product
       .addCase(createProductAsync.fulfilled, (state, action) => {
+        const { id, input } = action.payload;
         const newProduct: Product = {
-          id: `p-${Date.now()}`,
-          ...action.payload.input,
+          id,
+          ...input,
           rating: 5,
           saleCount: 0,
           createdAt: new Date().toISOString(),

@@ -31,7 +31,9 @@ export const BrandListPage: React.FC = () => {
 
   const [formData, setFormData] = useState<BrandCreateInput>({
     name: '',
+    tagLine: '',
     description: '',
+    image: '',
     logo: '',
     status: 'active',
   });
@@ -46,7 +48,7 @@ export const BrandListPage: React.FC = () => {
 
   const handleOpenCreateModal = () => {
     setEditingBrand(null);
-    setFormData({ name: '', description: '', logo: '', status: 'active' });
+    setFormData({ name: '', tagLine: '', description: '', image: '', logo: '', status: 'active' });
     setIsModalOpen(true);
   };
 
@@ -54,8 +56,10 @@ export const BrandListPage: React.FC = () => {
     setEditingBrand(b);
     setFormData({
       name: b.name,
+      tagLine: b.tagLine || '',
       description: b.description || '',
-      logo: b.logo || '',
+      image: b.image || b.logo || '',
+      logo: b.logo || b.image || '',
       status: b.status === 'deleted' ? 'inactive' : b.status || 'active',
     });
     setIsModalOpen(true);
@@ -64,12 +68,19 @@ export const BrandListPage: React.FC = () => {
   const handleSubmitModal = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    const payload: BrandCreateInput = {
+      name: formData.name.trim(),
+      tagLine: formData.tagLine?.trim() || undefined,
+      description: formData.description?.trim() || undefined,
+      image: (formData.image || formData.logo)?.trim() || undefined,
+      status: formData.status,
+    };
     try {
       if (editingBrand) {
-        await dispatch(updateBrandAsync({ id: editingBrand.id, input: formData })).unwrap();
+        await dispatch(updateBrandAsync({ id: editingBrand.id, input: payload })).unwrap();
         dispatch(addToast({ type: 'success', message: 'Cập nhật thương hiệu thành công!' }));
       } else {
-        await dispatch(createBrandAsync(formData)).unwrap();
+        await dispatch(createBrandAsync(payload)).unwrap();
         dispatch(addToast({ type: 'success', message: 'Tạo thương hiệu mới thành công!' }));
       }
       setIsModalOpen(false);
@@ -181,18 +192,43 @@ export const BrandListPage: React.FC = () => {
                       fontWeight: 800,
                       fontSize: '1rem',
                       border: '1px solid var(--border-primary)',
+                      overflow: 'hidden',
                     }}
                   >
-                    {b.name.charAt(0).toUpperCase()}
+                    {b.image || b.logo ? (
+                      <img
+                        src={b.image || b.logo}
+                        alt={b.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '4px' }}
+                        onError={(e) => {
+                          (e.currentTarget as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      b.name.charAt(0).toUpperCase()
+                    )}
                   </div>
                   <Badge variant={b.status === 'active' || !b.status ? 'success' : 'neutral'}>
                     {b.status === 'active' || !b.status ? 'Hoạt động' : 'Tạm ẩn'}
                   </Badge>
                 </div>
 
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '2px' }}>
                   {b.name}
                 </h3>
+                {b.tagLine && (
+                  <div
+                    style={{
+                      fontSize: '0.8125rem',
+                      fontStyle: 'italic',
+                      fontWeight: 600,
+                      color: 'var(--accent-primary)',
+                      marginBottom: '8px',
+                    }}
+                  >
+                    "{b.tagLine}"
+                  </div>
+                )}
                 <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', lineHeight: 1.5, minHeight: '38px' }}>
                   {b.description || 'Không có mô tả chi tiết'}
                 </p>
@@ -261,20 +297,27 @@ export const BrandListPage: React.FC = () => {
           />
 
           <Input
-            label="Đường dẫn Logo (URL)"
-            value={formData.logo || ''}
-            onChange={(e) => setFormData({ ...formData, logo: e.target.value })}
-            placeholder="https://..."
+            label="Khẩu hiệu / Slogan (Tagline)"
+            value={formData.tagLine || ''}
+            onChange={(e) => setFormData({ ...formData, tagLine: e.target.value })}
+            placeholder="Ví dụ: Just Do It, Impossible is Nothing, Think Different..."
+          />
+
+          <Input
+            label="Đường dẫn Logo / Ảnh đại diện (URL)"
+            value={formData.image || formData.logo || ''}
+            onChange={(e) => setFormData({ ...formData, image: e.target.value, logo: e.target.value })}
+            placeholder="https://images.unsplash.com/..."
           />
 
           <div className="form-group">
-            <label className="form-label">Mô tả hoặc slogan thương hiệu</label>
+            <label className="form-label">Mô tả chi tiết thương hiệu</label>
             <textarea
               className="form-textarea"
               rows={3}
               value={formData.description || ''}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Slogan, thông tin đối tác..."
+              placeholder="Thông tin đối tác, xuất xứ, thế mạnh thương hiệu..."
             />
           </div>
 

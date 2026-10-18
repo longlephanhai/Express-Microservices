@@ -1,10 +1,9 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from '@reduxjs/toolkit';
 import type { Brand, BrandState, BrandCreateInput, BrandUpdateInput } from '../../types';
 import { brandApi } from '../../api/brandApi';
-import { MOCK_BRANDS } from '../../utils/mockData';
 
 const initialState: BrandState = {
-  items: MOCK_BRANDS,
+  items: [],
   selectedBrand: null,
   status: 'idle',
   error: null,
@@ -12,48 +11,49 @@ const initialState: BrandState = {
 
 export const fetchBrandsAsync = createAsyncThunk(
   'brands/fetchBrands',
-  async () => {
+  async (_, { rejectWithValue }) => {
     try {
       const res = await brandApi.getBrands();
       return res;
-    } catch {
-      return { data: MOCK_BRANDS };
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || 'Không thể tải thương hiệu');
     }
   }
 );
 
 export const createBrandAsync = createAsyncThunk(
   'brands/createBrand',
-  async (input: BrandCreateInput) => {
+  async (input: BrandCreateInput, { rejectWithValue }) => {
     try {
-      await brandApi.createBrand(input);
-      return input;
-    } catch {
-      return input;
+      const res = await brandApi.createBrand(input);
+      const createdId = typeof res.data === 'string' ? res.data : (res.data as any)?.id || `b-${Date.now()}`;
+      return { id: createdId, input };
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || 'Không thể tạo thương hiệu');
     }
   }
 );
 
 export const updateBrandAsync = createAsyncThunk(
   'brands/updateBrand',
-  async ({ id, input }: { id: string; input: BrandUpdateInput }) => {
+  async ({ id, input }: { id: string; input: BrandUpdateInput }, { rejectWithValue }) => {
     try {
       await brandApi.updateBrand(id, input);
       return { id, input };
-    } catch {
-      return { id, input };
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || 'Không thể cập nhật thương hiệu');
     }
   }
 );
 
 export const deleteBrandAsync = createAsyncThunk(
   'brands/deleteBrand',
-  async (id: string) => {
+  async (id: string, { rejectWithValue }) => {
     try {
       await brandApi.deleteBrand(id);
       return id;
-    } catch {
-      return id;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.message || err.message || 'Không thể xóa thương hiệu');
     }
   }
 );
@@ -70,21 +70,21 @@ export const brandSlice = createSlice({
     builder
       .addCase(fetchBrandsAsync.pending, (state) => {
         state.status = 'loading';
+        state.error = null;
       })
       .addCase(fetchBrandsAsync.fulfilled, (state, action) => {
         state.status = 'succeeded';
-        if (Array.isArray(action.payload.data) && action.payload.data.length > 0) {
-          state.items = action.payload.data;
-        }
+        state.items = action.payload.data || [];
       })
       .addCase(fetchBrandsAsync.rejected, (state, action) => {
         state.status = 'failed';
         state.error = (action.payload as string) || 'Không thể tải thương hiệu';
       })
       .addCase(createBrandAsync.fulfilled, (state, action) => {
+        const { id, input } = action.payload;
         const newBrand: Brand = {
-          id: `b-${Date.now()}`,
-          ...action.payload,
+          id,
+          ...input,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };

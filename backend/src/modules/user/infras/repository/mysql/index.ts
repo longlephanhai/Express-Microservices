@@ -87,7 +87,24 @@ export class MySQLUserQueryRepository implements IUserQueryRepository {
 
     async list(cond: UserCondDTO, paging: PagingDTO): Promise<User[]> {
         const { page, limit } = paging;
-        const condSQL = { status: { [Op.ne]: ModelStatus.DELETED } };
+        const condSQL: any = { status: { [Op.ne]: ModelStatus.DELETED } };
+
+        if (cond.role) {
+            condSQL.role = cond.role;
+        }
+        if (cond.status) {
+            condSQL.status = cond.status;
+        }
+        if (cond.search && cond.search.trim() !== '') {
+            const keyword = `%${cond.search.trim()}%`;
+            condSQL[Op.or] = [
+                { email: { [Op.like]: keyword } },
+                { firstName: { [Op.like]: keyword } },
+                { lastName: { [Op.like]: keyword } },
+                { phone: { [Op.like]: keyword } }
+            ];
+        }
+
         const model = this.sequelize.models[this.modelName];
         if (!model) {
             throw new Error(`Model ${this.modelName} not found`);
@@ -98,8 +115,18 @@ export class MySQLUserQueryRepository implements IUserQueryRepository {
             where: condSQL,
             offset: (page - 1) * limit,
             limit: limit,
-            order: [['id', 'DESC']],
+            order: [['created_at', 'DESC']],
         });
-        return rows.map((row) => row.get({ plain: true }));
+        return rows.map((row) => {
+            const plain = row.get({ plain: true });
+            const { created_at, updated_at, password, salt, ...props } = plain;
+            return {
+                ...props,
+                created_at,
+                updated_at,
+                createdAt: created_at,
+                updatedAt: updated_at,
+            } as unknown as User;
+        });
     }
 }

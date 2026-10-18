@@ -13,8 +13,8 @@ export const LoginPage: React.FC = () => {
   const location = useLocation();
 
   const { status, error } = useAppSelector((state) => state.auth);
-  const [email, setEmail] = useState('admin@microservices.local');
-  const [password, setPassword] = useState('Admin@123456');
+  const [email, setEmail] = useState('admin@example.com');
+  const [password, setPassword] = useState('Password123@');
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
 
@@ -163,7 +163,26 @@ export const LoginPage: React.FC = () => {
           Vào ngay với quyền Super Admin Demo
         </Button>
 
-        <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+        <div
+          style={{
+            marginTop: '20px',
+            padding: '10px 14px',
+            backgroundColor: 'var(--bg-secondary)',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--border-primary)',
+            fontSize: '0.75rem',
+            color: 'var(--text-secondary)',
+            textAlign: 'center',
+            lineHeight: 1.5,
+          }}
+        >
+          <div>Tài khoản Database đã khởi tạo:</div>
+          <strong style={{ color: 'var(--accent-primary)', fontFamily: 'var(--font-mono)' }}>
+            admin@example.com / Password123@
+          </strong>
+        </div>
+
+        <div style={{ marginTop: '16px', textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
           Kết nối trực tiếp tới API Gateway :3000
         </div>
       </div>

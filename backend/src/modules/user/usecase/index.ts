@@ -93,14 +93,31 @@ export class UserUseCase implements IUserUseCase {
         const { password, salt, ...safeUser } = user;
         return safeUser as User;
     }
-    listUsers(cond: UserCondDTO, paging: PagingDTO): Promise<User[]> {
-        throw new Error("Method not implemented.");
-    }
-    updateUser(id: string, data: UserUpdateDTO): Promise<boolean> {
-        throw new Error("Method not implemented.");
-    }
-    deleteUser(id: string): Promise<boolean> {
-        throw new Error("Method not implemented.");
+    async listUsers(cond: UserCondDTO, paging: PagingDTO): Promise<User[]> {
+        return await this.userQueryRepository.list(cond, paging);
     }
 
+    async updateUser(id: string, data: UserUpdateDTO): Promise<boolean> {
+        const user = await this.userQueryRepository.get(id);
+        if (!user || user.status === Status.DELETED) {
+            throw new Error("User not found");
+        }
+
+        const updateData: Record<string, any> = { ...data };
+        if (data.password) {
+            const salt = bcrypt.genSaltSync(10);
+            updateData.salt = salt;
+            updateData.password = bcrypt.hashSync(data.password, salt);
+        }
+
+        return await this.userCommandRepository.update(id, updateData);
+    }
+
+    async deleteUser(id: string): Promise<boolean> {
+        const user = await this.userQueryRepository.get(id);
+        if (!user || user.status === Status.DELETED) {
+            throw new Error("User not found");
+        }
+        return await this.userCommandRepository.delete(id, false);
+    }
 }

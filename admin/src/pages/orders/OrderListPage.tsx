@@ -3,7 +3,9 @@ import { useAppDispatch, useAppSelector } from '../../app/hooks';
 import {
   fetchOrdersAsync,
   updateOrderStatusAsync,
+  deleteOrderAsync,
 } from '../../features/orders/orderSlice';
+import { orderItemApi, type OrderItemRecord } from '../../api/orderItemApi';
 import { addToast } from '../../features/ui/uiSlice';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/common/Button';
@@ -11,6 +13,7 @@ import { Input } from '../../components/common/Input';
 import { Select } from '../../components/common/Select';
 import { Badge } from '../../components/common/Badge';
 import { Modal } from '../../components/common/Modal';
+import { Spinner } from '../../components/common/Spinner';
 import { EmptyState } from '../../components/feedback/EmptyState';
 import { formatCurrency, formatDate } from '../../utils/formatters';
 import { ORDER_STATUS_MAP, PAYMENT_STATUS_MAP } from '../../utils/constants';
@@ -26,30 +29,38 @@ import {
   Phone,
   Mail,
   MapPin,
+  Trash2,
 } from 'lucide-react';
 
 export const OrderListPage: React.FC = () => {
   const dispatch = useAppDispatch();
-  const { items: orders, status } = useAppSelector((state) => state.orders);
+  const { items: orders, status, error } = useAppSelector((state) => state.orders);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [orderItems, setOrderItems] = useState<OrderItemRecord[]>([]);
+  const [loadingItems, setLoadingItems] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     dispatch(fetchOrdersAsync(undefined));
   }, [dispatch]);
 
-  const filteredOrders = orders.filter((o) => {
-    const matchesSearch =
-      o.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (o.recipient_phone && o.recipient_phone.includes(searchTerm)) ||
-      (o.recipient_first_name && o.recipient_first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (o.recipient_last_name && o.recipient_last_name.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesStatus = statusFilter ? o.status === statusFilter : true;
-    return matchesSearch && matchesStatus;
-  });
+  const handleOpenOrderDetail = async (order: Order) => {
+    setSelectedOrder(order);
+    setLoadingItems(true);
+    setOrderItems([]);
+    try {
+      const res = await orderItemApi.getOrderItems(order.id);
+      setOrderItems(res.data || []);
+    } catch (e) {
+      console.error('Lỗi khi tải order items:', e);
+      setOrderItems([]);
+    } finally {
+      setLoadingItems(false);
+    }
+  };
 
   const handleUpdateStatus = async (orderId: string, newStatus: OrderStatus) => {
     setSubmitting(true);
@@ -66,14 +77,33 @@ export const OrderListPage: React.FC = () => {
     }
   };
 
-  const statusOptions = [
-    { value: '', label: 'Tất cả trạng thái' },
-    { value: 'pending', label: 'Chờ xử lý (Pending)' },
-    { value: 'confirmed', label: 'Đã xác nhận (Confirmed)' },
-    { value: 'shipping', label: 'Đang giao (Shipping)' },
-    { value: 'delivered', label: 'Đã giao (Delivered)' },
-    { value: 'canceled', label: 'Đã hủy (Canceled)' },
-  ];
+  const handleDeleteOrder = async (orderId: string) => {
+    const confirmDelete = window.confirm(`Bạn có chắc chắn muốn xóa đơn hàng #${orderId.slice(0, 8)}?`);
+    if (!confirmDelete) return;
+
+    setSubmitting(true);
+    try {
+      await dispatch(deleteOrderAsync(orderId)).unwrap();
+      dispatch(addToast({ type: 'success', message: 'Đã xóa đơn hàng thành công' }));
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder(null);
+      }
+    } catch (err: any) {
+      dispatch(addToast({ type: 'error', message: err || 'Không thể xóa đơn hàng' }));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const filteredOrders = orders.filter((o) => {
+    const matchesSearch =
+      o.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (o.recipient_phone && o.recipient_phone.includes(searchTerm)) ||
+      (o.recipient_first_name && o.recipient_first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (o.recipient_last_name && o.recipient_last_name.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesStatus = statusFilter ? o.status === statusFilter : true;
+    return matchesSearch && matchesStatus;
+  });
 
   return (
     <div>
@@ -93,7 +123,7 @@ export const OrderListPage: React.FC = () => {
             Quản lý <span className="text-gradient">Đơn hàng</span>
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '4px' }}>
-            Kết nối Order Service qua API Gateway (Port 3006)
+            Dữ liệu trực tiếp từ Order Service & Order Items Database
           </p>
         </div>
 
@@ -108,7 +138,24 @@ export const OrderListPage: React.FC = () => {
         </Button>
       </div>
 
-      {/* Filter Bar */}
+      {/* Error alert */}
+      {error && (
+        <div
+          style={{
+            padding: '12px 16px',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid var(--accent-danger)',
+            borderRadius: 'var(--radius-md)',
+            color: 'var(--accent-danger)',
+            marginBottom: '20px',
+            fontSize: '0.875rem',
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      {/* Filters Bar */}
       <Card style={{ marginBottom: '20px', padding: '16px 20px' }}>
         <div
           style={{
@@ -119,33 +166,44 @@ export const OrderListPage: React.FC = () => {
           }}
         >
           <Input
-            placeholder="Tìm theo mã đơn, SĐT hoặc tên khách..."
+            placeholder="Tìm theo mã đơn, SĐT hoặc người nhận..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             icon={<Search size={16} />}
             style={{ marginBottom: 0 }}
           />
+
           <Select
-            options={statusOptions}
+            options={[
+              { value: '', label: 'Tất cả trạng thái' },
+              { value: 'pending', label: 'Chờ duyệt' },
+              { value: 'confirmed', label: 'Đã xác nhận' },
+              { value: 'shipping', label: 'Đang giao hàng' },
+              { value: 'delivered', label: 'Đã giao' },
+              { value: 'canceled', label: 'Đã hủy' },
+            ]}
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             style={{ marginBottom: 0 }}
           />
+
           <div style={{ textAlign: 'right', fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
             Tổng số: <strong style={{ color: 'var(--text-primary)' }}>{filteredOrders.length}</strong> đơn hàng
           </div>
         </div>
       </Card>
 
-      {/* Table */}
-      {filteredOrders.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon={<ShoppingBag size={32} />}
-            title="Không tìm thấy đơn hàng nào"
-            description="Hãy thử đổi điều kiện lọc trạng thái hoặc từ khóa tìm kiếm."
-          />
+      {/* Main Table or Loading/Empty */}
+      {status === 'loading' && orders.length === 0 ? (
+        <Card style={{ padding: '60px 0', textAlign: 'center' }}>
+          <Spinner size="lg" />
         </Card>
+      ) : filteredOrders.length === 0 ? (
+        <EmptyState
+          title="Không tìm thấy đơn hàng"
+          description="Chưa có đơn hàng nào hoặc không có kết quả phù hợp với bộ lọc hiện tại."
+          icon={<ShoppingBag size={48} />}
+        />
       ) : (
         <Card style={{ padding: 0, overflow: 'hidden' }}>
           <div className="table-wrapper" style={{ border: 'none' }}>
@@ -153,50 +211,68 @@ export const OrderListPage: React.FC = () => {
               <thead>
                 <tr>
                   <th>Mã đơn</th>
-                  <th>Người nhận</th>
-                  <th>Địa chỉ giao</th>
-                  <th>Tổng giá trị</th>
+                  <th>Khách hàng</th>
+                  <th>Tổng tiền</th>
                   <th>Thanh toán</th>
                   <th>Trạng thái đơn</th>
-                  <th>Thời gian</th>
-                  <th style={{ textAlign: 'right' }}>Chi tiết</th>
+                  <th>Ngày đặt</th>
+                  <th style={{ textAlign: 'center' }}>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredOrders.map((ord) => {
-                  const statusInfo = ORDER_STATUS_MAP[ord.status] || { label: ord.status };
-                  const paymentInfo = PAYMENT_STATUS_MAP[ord.payment_status] || { label: ord.payment_status };
+                  const statusInfo = ORDER_STATUS_MAP[ord.status] || {
+                    label: ord.status,
+                    variant: 'neutral',
+                  };
+                  const payInfo = PAYMENT_STATUS_MAP[ord.payment_status] || {
+                    label: ord.payment_status,
+                    variant: 'neutral',
+                  };
+
                   return (
                     <tr key={ord.id}>
-                      <td style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: '0.8125rem' }}>
-                        {ord.id.slice(0, 11)}
+                      <td>
+                        <span
+                          style={{
+                            fontWeight: 600,
+                            fontFamily: 'var(--font-mono)',
+                            color: 'var(--accent-primary)',
+                          }}
+                        >
+                          #{ord.id.slice(0, 8)}
+                        </span>
                       </td>
                       <td>
                         <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                           {ord.recipient_first_name} {ord.recipient_last_name}
                         </div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                          {ord.recipient_phone}
+                          {ord.recipient_phone || 'Không có SĐT'}
                         </div>
                       </td>
-                      <td style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', maxWidth: '240px' }}>
-                        {ord.shipping_address}
-                        {ord.shipping_city ? `, ${ord.shipping_city}` : ''}
-                      </td>
-                      <td style={{ fontWeight: 700, color: 'var(--color-success)', fontSize: '0.9rem' }}>
+                      <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                         {formatCurrency(ord.total_price || 0)}
                       </td>
                       <td>
-                        <Badge variant={ord.payment_status === 'paid' ? 'success' : 'warning'}>
-                          {paymentInfo.label}
+                        <Badge
+                          variant={
+                            ord.payment_status === 'paid'
+                              ? 'success'
+                              : ord.payment_status === 'failed'
+                              ? 'danger'
+                              : 'warning'
+                          }
+                        >
+                          {payInfo.label}
                         </Badge>
                       </td>
                       <td>
                         <Badge
                           variant={
-                            ord.status === 'delivered' || ord.status === 'completed'
+                            ord.status === 'delivered'
                               ? 'success'
-                              : ord.status === 'shipping'
+                              : ord.status === 'confirmed' || ord.status === 'shipping'
                               ? 'info'
                               : ord.status === 'pending'
                               ? 'warning'
@@ -209,15 +285,24 @@ export const OrderListPage: React.FC = () => {
                       <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                         {formatDate(ord.created_at)}
                       </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => setSelectedOrder(ord)}
-                          icon={<Eye size={14} />}
-                        >
-                          Xem
-                        </Button>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleOpenOrderDetail(ord)}
+                            icon={<Eye size={14} />}
+                          >
+                            Xem
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            title="Xóa đơn hàng"
+                            onClick={() => handleDeleteOrder(ord.id)}
+                            icon={<Trash2 size={14} color="var(--accent-danger)" />}
+                          />
+                        </div>
                       </td>
                     </tr>
                   );
@@ -282,6 +367,16 @@ export const OrderListPage: React.FC = () => {
                     Hủy đơn
                   </Button>
                 )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  title="Xóa đơn hàng khỏi hệ thống"
+                  onClick={() => handleDeleteOrder(selectedOrder.id)}
+                  isLoading={submitting}
+                  icon={<Trash2 size={14} color="var(--accent-danger)" />}
+                >
+                  Xóa
+                </Button>
               </div>
               <Button variant="secondary" size="sm" onClick={() => setSelectedOrder(null)}>
                 Đóng
@@ -302,81 +397,80 @@ export const OrderListPage: React.FC = () => {
             }}
           >
             <div>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                Thông tin người nhận
-              </span>
-              <div style={{ fontWeight: 600, fontSize: '0.925rem', marginTop: '4px' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
+                NGƯỜI NHẬN HÀNG
+              </div>
+              <div style={{ fontWeight: 600, fontSize: '0.9375rem', color: 'var(--text-primary)' }}>
                 {selectedOrder.recipient_first_name} {selectedOrder.recipient_last_name}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+              <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
                 <Phone size={13} /> {selectedOrder.recipient_phone || 'Chưa cập nhật'}
               </div>
               {selectedOrder.recipient_email && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
                   <Mail size={13} /> {selectedOrder.recipient_email}
                 </div>
               )}
             </div>
 
             <div>
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                Địa chỉ giao hàng & Vận chuyển
-              </span>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '6px', fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                <MapPin size={14} style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
+                ĐỊA CHỈ NHẬN HÀNG
+              </div>
+              <div style={{ fontSize: '0.8125rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+                <MapPin size={14} style={{ marginTop: '2px', flexShrink: 0 }} />
                 <span>
                   {selectedOrder.shipping_address}
                   {selectedOrder.shipping_city ? `, ${selectedOrder.shipping_city}` : ''}
                 </span>
               </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', marginTop: '6px' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px' }}>
                 Mã vận đơn: {selectedOrder.tracking_number || 'Chưa cấp mã'}
               </div>
             </div>
           </div>
 
-          {/* Items Table */}
+          {/* Items Table with Real Data from Order Items API */}
           <div style={{ marginBottom: '16px' }}>
             <h4 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: '10px', color: 'var(--text-primary)' }}>
-              Sản phẩm trong đơn ({selectedOrder.items?.length || 1})
+              Sản phẩm trong đơn ({orderItems.length})
             </h4>
-            <div className="table-wrapper">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Sản phẩm</th>
-                    <th>Đơn giá</th>
-                    <th>SL</th>
-                    <th style={{ textAlign: 'right' }}>Thành tiền</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(selectedOrder.items && selectedOrder.items.length > 0
-                    ? selectedOrder.items
-                    : [
-                        {
-                          id: 'mock-it-1',
-                          order_id: selectedOrder.id,
-                          product_id: 'p1',
-                          product_name: 'Sản phẩm tiêu chuẩn',
-                          price: selectedOrder.total_price || 0,
-                          quantity: 1,
-                          total_amount: selectedOrder.total_price || 0,
-                        },
-                      ]
-                  ).map((item) => (
-                    <tr key={item.id}>
-                      <td style={{ fontWeight: 500 }}>{item.product_name || `Mã SP: ${item.product_id}`}</td>
-                      <td>{formatCurrency(item.price)}</td>
-                      <td>x{item.quantity}</td>
-                      <td style={{ textAlign: 'right', fontWeight: 600 }}>
-                        {formatCurrency(item.total_amount || item.price * item.quantity)}
-                      </td>
+            {loadingItems ? (
+              <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                <Spinner size="md" />
+              </div>
+            ) : orderItems.length === 0 ? (
+              <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)' }}>
+                Chưa có mặt hàng nào được ghi nhận cho đơn này trong database.
+              </div>
+            ) : (
+              <div className="table-wrapper">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Sản phẩm</th>
+                      <th>Thuộc tính</th>
+                      <th>Đơn giá</th>
+                      <th>SL</th>
+                      <th style={{ textAlign: 'right' }}>Thành tiền</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {orderItems.map((item) => (
+                      <tr key={item.id}>
+                        <td style={{ fontWeight: 500 }}>{item.name || `Mã SP: ${item.product_id}`}</td>
+                        <td style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{item.attribute || '-'}</td>
+                        <td>{formatCurrency(item.price)}</td>
+                        <td>x{item.quantity}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                          {formatCurrency(item.price * item.quantity)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
           {/* Total summary */}
@@ -393,7 +487,7 @@ export const OrderListPage: React.FC = () => {
             <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-muted)' }}>
               Tổng tiền thanh toán:
             </span>
-            <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-success)' }}>
+            <span style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--accent-primary)' }}>
               {formatCurrency(selectedOrder.total_price || 0)}
             </span>
           </div>

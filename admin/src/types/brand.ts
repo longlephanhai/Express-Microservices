@@ -3,7 +3,9 @@ import type { LoadingStatus } from './common';
 export interface Brand {
   id: string;
   name: string;
+  tagLine?: string;
   description?: string;
+  image?: string;
   logo?: string;
   status?: 'active' | 'inactive' | 'deleted';
   createdAt?: string;
@@ -12,7 +14,9 @@ export interface Brand {
 
 export interface BrandCreateInput {
   name: string;
+  tagLine?: string;
   description?: string;
+  image?: string;
   logo?: string;
   status?: 'active' | 'inactive';
 }

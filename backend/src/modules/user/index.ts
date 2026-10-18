@@ -30,5 +30,11 @@ export const setupUserHexagon = (sequelize: Sequelize) => {
     router.get('/users/profile', authMiddleware, httpService.getProfileAPI.bind(httpService));
     router.get('/users/me', authMiddleware, httpService.getProfileAPI.bind(httpService));
 
+    // Admin user management routes
+    router.get('/users', authMiddleware, httpService.listUsersAPI.bind(httpService));
+    router.get('/users/:id', authMiddleware, httpService.getDetailUserAPI.bind(httpService));
+    router.patch('/users/:id', authMiddleware, httpService.updateUserAPI.bind(httpService));
+    router.delete('/users/:id', authMiddleware, httpService.deleteUserAPI.bind(httpService));
+
     return router;
 };
