@@ -23,6 +23,7 @@ interface CartContextType {
   showToast: (msg: string) => void
   addToCart: (productId: string, quantity?: number) => Promise<boolean>
   changeQuantity: (productId: string, delta: number) => Promise<void>
+  removeItems: (productIds: string[]) => Promise<void>
   clearCart: () => void
 }
 
@@ -229,6 +230,44 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const removeItems = async (productIds: string[]) => {
+    if (!productIds || productIds.length === 0) return
+
+    const cartIdsToDelete = productIds
+      .map((pid) => cartItemIds[pid])
+      .filter((cid): cid is string => Boolean(cid))
+
+    // Update local state immediately
+    setCart((prev) => {
+      const copy = { ...prev }
+      productIds.forEach((id) => delete copy[id])
+      return copy
+    })
+    setCartItemIds((prev) => {
+      const copy = { ...prev }
+      productIds.forEach((id) => delete copy[id])
+      return copy
+    })
+
+    // Delete remotely for authenticated users
+    if (isAuthenticated && token && cartIdsToDelete.length > 0) {
+      await Promise.all(
+        cartIdsToDelete.map(async (cid) => {
+          try {
+            await fetch(`${API_BASE_URL}/v1/carts/${cid}`, {
+              method: 'DELETE',
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            })
+          } catch (err) {
+            console.error(`[CartProvider] Failed to delete cart item ${cid}:`, err)
+          }
+        })
+      )
+    }
+  }
+
   const clearCart = () => {
     setCart({})
     setCartItemIds({})
@@ -254,6 +293,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         showToast,
         addToCart,
         changeQuantity,
+        removeItems,
         clearCart,
       }}
     >

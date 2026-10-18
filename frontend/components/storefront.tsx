@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import {
   AlertCircle,
   ArrowLeft,
@@ -15,6 +15,7 @@ import {
   Search,
   ShoppingBag,
   Sparkles,
+  Trash2,
   UserRound,
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
@@ -204,8 +205,48 @@ export default function Storefront({ initialView = 'home' }: { initialView?: Sto
   const filtered = activeCategoryId === 'all'
     ? products
     : products.filter((p) => p.categoryId === activeCategoryId || p.category === activeCategoryId)
-  const cartItems = products.filter((p) => cart[p.id])
-  const subtotal = cartItems.reduce((sum, p) => sum + p.price * (cart[p.id] ?? 0), 0)
+  const cartItems = useMemo(
+    () => products.filter((p) => Boolean(cart[p.id])),
+    [products, cart]
+  )
+  const [unselectedItemIds, setUnselectedItemIds] = useState<string[]>([])
+
+  const toggleSelectItem = (id: string) => {
+    setUnselectedItemIds((prev) =>
+      prev.includes(id) ? prev.filter((itemId) => itemId !== id) : [...prev, id]
+    )
+  }
+
+  const selectedCartItems = useMemo(
+    () => cartItems.filter((p) => !unselectedItemIds.includes(p.id)),
+    [cartItems, unselectedItemIds]
+  )
+  const selectedItemIds = useMemo(
+    () => selectedCartItems.map((p) => p.id),
+    [selectedCartItems]
+  )
+
+  const toggleSelectAll = () => {
+    if (cartItems.length > 0 && selectedCartItems.length === cartItems.length) {
+      // Currently all are selected -> unselect all
+      setUnselectedItemIds(cartItems.map((p) => p.id))
+    } else {
+      // Some or all are unselected -> select all
+      setUnselectedItemIds([])
+    }
+  }
+
+  const clearSelection = () => {
+    setUnselectedItemIds(cartItems.map((p) => p.id))
+  }
+  const totalSubtotal = useMemo(
+    () => cartItems.reduce((sum, p) => sum + p.price * (cart[p.id] ?? 0), 0),
+    [cartItems, cart]
+  )
+  const selectedSubtotal = useMemo(
+    () => selectedCartItems.reduce((sum, p) => sum + p.price * (cart[p.id] ?? 0), 0),
+    [selectedCartItems, cart]
+  )
 
   const go = (next: typeof view) => { setView(next); setMenuOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }
   const add = (id: string) => {
@@ -401,7 +442,12 @@ export default function Storefront({ initialView = 'home' }: { initialView?: Sto
       <CartView
         items={cartItems}
         cart={cart}
-        subtotal={subtotal}
+        subtotal={selectedSubtotal}
+        totalSubtotal={totalSubtotal}
+        selectedItemIds={selectedItemIds}
+        onToggleItem={toggleSelectItem}
+        onToggleSelectAll={toggleSelectAll}
+        onClearSelection={clearSelection}
         change={change}
         go={go}
         isAuthenticated={isAuthenticated}
@@ -410,6 +456,10 @@ export default function Storefront({ initialView = 'home' }: { initialView?: Sto
           go('login')
         }}
         onProceedToCheckout={() => {
+          if (selectedCartItems.length === 0) {
+            showToast('Vui lòng chọn ít nhất một sản phẩm để thanh toán!')
+            return
+          }
           if (!isAuthenticated) {
             setRedirectAfterAuth('payment')
             go('login')
@@ -421,9 +471,9 @@ export default function Storefront({ initialView = 'home' }: { initialView?: Sto
     )}
     {view === 'payment' && (
       <PaymentView
-        items={cartItems}
+        items={selectedCartItems.length > 0 ? selectedCartItems : cartItems}
         cart={cart}
-        subtotal={subtotal}
+        subtotal={selectedCartItems.length > 0 ? selectedSubtotal : totalSubtotal}
         go={go}
         onRequireLogin={() => {
           setRedirectAfterAuth('payment')
@@ -483,6 +533,11 @@ function CartView({
   items,
   cart,
   subtotal,
+  totalSubtotal,
+  selectedItemIds,
+  onToggleItem,
+  onToggleSelectAll,
+  onClearSelection,
   change,
   go,
   onProceedToCheckout,
@@ -492,49 +547,151 @@ function CartView({
   items: Product[]
   cart: Cart
   subtotal: number
+  totalSubtotal?: number
+  selectedItemIds: string[]
+  onToggleItem: (id: string) => void
+  onToggleSelectAll: () => void
+  onClearSelection: () => void
   change: (id: string, delta: number) => void
   go: (v: StoreView) => void
   onProceedToCheckout: () => void
   isAuthenticated?: boolean
   onRequireLogin?: () => void
 }) {
+  const isAllSelected = items.length > 0 && selectedItemIds.length === items.length
+  const selectedCount = selectedItemIds.length
+
   return (
     <main className="mx-auto max-w-[1180px] px-5 py-10 lg:px-10 lg:py-14">
       <PageHeading eyebrow="Your selection" title="Shopping bag." />
       {items.length ? (
         <div className="grid gap-10 lg:grid-cols-[1fr_360px]">
-          <div className="flex flex-col gap-5">
-            {items.map((p) => (
-              <div key={p.id} className="flex gap-4 border-b border-[#dce3dc] pb-5">
-                <img src={p.image} alt={p.name} className="size-28 object-cover sm:size-36" />
-                <div className="flex min-w-0 flex-1 flex-col justify-between">
-                  <div>
-                    <p className="text-[9px] uppercase tracking-[.16em] text-[#8fbc8f]">{p.brand}</p>
-                    <h3 className="mt-1 text-sm uppercase tracking-[.06em]">{p.name}</h3>
-                    <p className="mt-1 text-xs text-[#68736b]">{p.color}</p>
-                  </div>
-                  <div className="flex items-end justify-between">
-                    <div className="flex items-center border border-[#dce3dc]">
-                      <button aria-label="Decrease quantity" onClick={() => change(p.id, -1)} className="p-2"><Minus size={13} /></button>
-                      <span className="w-7 text-center text-xs">{cart[p.id]}</span>
-                      <button aria-label="Increase quantity" onClick={() => change(p.id, 1)} className="p-2"><Plus size={13} /></button>
-                    </div>
-                    <strong className="text-sm">{formatPrice(p.price * (cart[p.id] ?? 0))}</strong>
-                  </div>
-                </div>
+          <div className="flex flex-col gap-4">
+            {/* Header select-all bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border border-[#dce3dc] bg-white p-4 rounded-sm shadow-xs">
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  onChange={onToggleSelectAll}
+                  className="size-4 rounded border-[#aeb8af] text-[#2b4c30] accent-[#2b4c30] cursor-pointer"
+                />
+                <span className="text-xs font-semibold uppercase tracking-[.08em] text-[#182019]">
+                  Chọn tất cả ({items.length} sản phẩm)
+                </span>
+              </label>
+              <div className="flex items-center gap-3 text-xs text-[#68736b]">
+                <span>
+                  Đã chọn: <strong className="text-[#182019]">{selectedCount}</strong> / {items.length} món
+                </span>
+                {selectedCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={onClearSelection}
+                    className="text-[11px] font-medium text-red-600 hover:underline cursor-pointer"
+                  >
+                    Bỏ chọn tất cả
+                  </button>
+                )}
               </div>
-            ))}
+            </div>
+
+            {/* List of items */}
+            <div className="flex flex-col gap-4">
+              {items.map((p) => {
+                const isSelected = selectedItemIds.includes(p.id)
+                return (
+                  <div
+                    key={p.id}
+                    className={`flex items-start gap-3 sm:gap-4 border border-[#dce3dc] bg-white p-4 transition-all duration-200 rounded-sm ${
+                      isSelected
+                        ? 'ring-1 ring-[#8fbc8f]/60 shadow-xs'
+                        : 'opacity-65 bg-[#fafbfa]'
+                    }`}
+                  >
+                    <div className="pt-2">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => onToggleItem(p.id)}
+                        aria-label={`Chọn sản phẩm ${p.name}`}
+                        className="size-4 rounded border-[#aeb8af] text-[#2b4c30] accent-[#2b4c30] cursor-pointer"
+                      />
+                    </div>
+                    <img
+                      src={p.image}
+                      alt={p.name}
+                      className="size-24 object-cover sm:size-32 rounded-xs shrink-0 cursor-pointer"
+                      onClick={() => onToggleItem(p.id)}
+                    />
+                    <div className="flex min-w-0 flex-1 flex-col justify-between self-stretch">
+                      <div>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="cursor-pointer" onClick={() => onToggleItem(p.id)}>
+                            <p className="text-[9px] uppercase tracking-[.16em] text-[#8fbc8f] font-semibold">{p.brand}</p>
+                            <h3 className="mt-1 text-sm uppercase tracking-[.06em] font-medium text-[#182019] line-clamp-1">{p.name}</h3>
+                            <p className="mt-1 text-xs text-[#68736b]">{p.color}</p>
+                          </div>
+                          <button
+                            title="Xóa khỏi giỏ hàng"
+                            aria-label="Xóa sản phẩm"
+                            onClick={() => change(p.id, -1 * (cart[p.id] || 1))}
+                            className="text-[#99a59b] hover:text-red-500 transition p-1.5 cursor-pointer"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex items-end justify-between mt-3 pt-2 border-t border-[#f0f3f0]">
+                        <div className="flex items-center border border-[#dce3dc] bg-white">
+                          <button aria-label="Giảm số lượng" onClick={() => change(p.id, -1)} className="p-2 hover:bg-black/5 transition cursor-pointer"><Minus size={13} /></button>
+                          <span className="w-8 text-center text-xs font-medium">{cart[p.id]}</span>
+                          <button aria-label="Tăng số lượng" onClick={() => change(p.id, 1)} className="p-2 hover:bg-black/5 transition cursor-pointer"><Plus size={13} /></button>
+                        </div>
+                        <div className="text-right">
+                          <span className="block text-[10px] text-[#68736b]">Đơn giá: {formatPrice(p.price)}</span>
+                          <strong className="text-sm font-semibold text-[#182019]">{formatPrice(p.price * (cart[p.id] ?? 0))}</strong>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
-          <aside className="h-fit bg-[#d8f3dc] p-6">
+
+          <aside className="h-fit bg-[#d8f3dc] p-6 rounded-sm border border-[#c6dfca]">
             <h2 className="font-serif text-2xl">Order summary</h2>
-            <div className="mt-6 flex justify-between border-b border-[#a8c9ad] pb-4 text-sm"><span>Subtotal</span><strong>{formatPrice(subtotal)}</strong></div>
-            <div className="flex justify-between py-4 text-sm"><span>Shipping</span><span>Free</span></div>
-            <div className="flex justify-between border-t border-[#a8c9ad] pt-4"><strong>Total</strong><strong>{formatPrice(subtotal)}</strong></div>
+            <div className="mt-5 flex justify-between text-xs text-[#35523a]">
+              <span>Món đã chọn</span>
+              <strong>{selectedCount} / {items.length} món</strong>
+            </div>
+            <div className="mt-3 flex justify-between border-b border-[#a8c9ad] pb-4 text-sm">
+              <span>Subtotal (Tạm tính)</span>
+              <strong>{formatPrice(subtotal)}</strong>
+            </div>
+            <div className="flex justify-between py-4 text-sm">
+              <span>Shipping (Vận chuyển)</span>
+              <span className="text-[#2b4c30] font-medium">Free</span>
+            </div>
+            <div className="flex justify-between border-t border-[#a8c9ad] pt-4 text-base">
+              <strong>Total (Tổng thanh toán)</strong>
+              <strong className="text-lg">{formatPrice(subtotal)}</strong>
+            </div>
+
+            {selectedCount === 0 && (
+              <div className="mt-4 flex items-center gap-2 rounded bg-amber-50 border border-amber-200 p-2.5 text-xs text-amber-800">
+                <AlertCircle size={15} className="shrink-0 text-amber-600" />
+                <span>Vui lòng chọn ít nhất 1 món để thanh toán</span>
+              </div>
+            )}
+
             <button
+              disabled={selectedCount === 0}
               onClick={onProceedToCheckout}
-              className="mt-6 flex w-full items-center justify-center gap-2 bg-[#182019] py-4 text-[10px] uppercase tracking-[.17em] text-white hover:bg-[#2c382e] transition"
+              className="mt-6 flex w-full items-center justify-center gap-2 bg-[#182019] py-4 text-[10px] uppercase tracking-[.17em] text-white hover:bg-[#2c382e] transition disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
             >
-              <span>Proceed to checkout</span>
+              <span>Tiến hành thanh toán ({selectedCount})</span>
               <ArrowRight size={14} />
             </button>
           </aside>
@@ -548,13 +705,13 @@ function CartView({
               <p className="text-xs text-[#68736b]">Bạn chưa đăng nhập. Vui lòng đăng nhập để xem và quản lý giỏ hàng của bạn.</p>
               <button
                 onClick={onRequireLogin || (() => go('login'))}
-                className="mt-2 bg-[#182019] px-6 py-3 text-[10px] uppercase tracking-[.16em] text-white hover:bg-[#2c382e] transition"
+                className="mt-2 bg-[#182019] px-6 py-3 text-[10px] uppercase tracking-[.16em] text-white hover:bg-[#2c382e] transition cursor-pointer"
               >
                 Đăng nhập ngay
               </button>
             </div>
           ) : (
-            <button onClick={() => go('products')} className="mt-6 border border-[#182019] px-6 py-3 text-[10px] uppercase tracking-[.16em]">
+            <button onClick={() => go('products')} className="mt-6 border border-[#182019] px-6 py-3 text-[10px] uppercase tracking-[.16em] cursor-pointer">
               Explore collection
             </button>
           )}
@@ -566,7 +723,7 @@ function CartView({
 
 function PaymentView({ items, cart, subtotal, go, onRequireLogin }: { items: Product[]; cart: Cart; subtotal: number; go: (v: StoreView) => void; onRequireLogin: () => void }) {
   const { user, token, isAuthenticated } = useAuth()
-  const { clearCart } = useCart()
+  const { removeItems } = useCart()
 
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
@@ -638,12 +795,41 @@ function PaymentView({ items, cart, subtotal, go, onRequireLogin }: { items: Pro
           <p className="mt-4 text-[11px] text-[#68736b]">
             Đơn hàng đã được đồng bộ với hệ thống Quản trị. Chúng tôi sẽ liên hệ để xác nhận sớm nhất.
           </p>
-          <div className="mt-8 flex justify-center">
+          <div className="mt-8 flex justify-center gap-3">
+            <button
+              onClick={() => go('cart')}
+              className="border border-[#182019] px-6 py-3.5 text-[10px] uppercase tracking-[.18em] text-[#182019] hover:bg-black/5 transition cursor-pointer"
+            >
+              Xem giỏ hàng
+            </button>
             <button
               onClick={() => go('products')}
-              className="bg-[#182019] px-8 py-3.5 text-[10px] uppercase tracking-[.18em] text-white hover:bg-[#2c382e] transition"
+              className="bg-[#182019] px-8 py-3.5 text-[10px] uppercase tracking-[.18em] text-white hover:bg-[#2c382e] transition cursor-pointer"
             >
               Tiếp tục mua sắm
+            </button>
+          </div>
+        </div>
+      </main>
+    )
+  }
+
+  // Empty selection screen guard
+  if (items.length === 0) {
+    return (
+      <main className="mx-auto max-w-[700px] px-5 py-16 text-center">
+        <div className="rounded-2xl border border-[#dce3dc] bg-white p-10 shadow-sm">
+          <ShoppingBag className="mx-auto text-[#8fbc8f]" size={35} />
+          <h1 className="mt-4 font-serif text-3xl text-[#182019]">Chưa có món hàng nào được chọn</h1>
+          <p className="mt-3 text-xs text-[#68736b]">
+            Quý khách chưa chọn món hàng nào từ giỏ hàng để tiến hành thanh toán.
+          </p>
+          <div className="mt-6 flex justify-center">
+            <button
+              onClick={() => go('cart')}
+              className="bg-[#182019] px-6 py-3.5 text-[10px] uppercase tracking-[.18em] text-white hover:bg-[#2c382e] transition cursor-pointer"
+            >
+              Quay lại giỏ hàng
             </button>
           </div>
         </div>
@@ -701,7 +887,8 @@ function PaymentView({ items, cart, subtotal, go, onRequireLogin }: { items: Pro
         }
       }
 
-      clearCart()
+      // Remove only the checked-out items from the cart
+      await removeItems(items.map((it) => it.id))
       setCreatedOrderId(orderId || 'ORD-' + Date.now().toString(36).toUpperCase())
     } catch (err: any) {
       setOrderError(err.message || 'Lỗi khi gửi đơn hàng.')
@@ -712,6 +899,14 @@ function PaymentView({ items, cart, subtotal, go, onRequireLogin }: { items: Pro
 
   return (
     <main className="mx-auto max-w-[1180px] px-5 py-10 lg:px-10 lg:py-14">
+      <button
+        type="button"
+        onClick={() => go('cart')}
+        className="mb-4 inline-flex items-center gap-1.5 text-xs text-[#68736b] hover:text-[#182019] transition cursor-pointer"
+      >
+        <ArrowLeft size={14} />
+        <span>Quay lại giỏ hàng</span>
+      </button>
       <PageHeading eyebrow="Almost yours" title="Checkout." />
       <div className="grid gap-10 lg:grid-cols-[1fr_380px]">
         <form className="flex flex-col gap-5" onSubmit={handlePlaceOrder}>
@@ -770,7 +965,7 @@ function PaymentView({ items, cart, subtotal, go, onRequireLogin }: { items: Pro
           <button
             type="submit"
             disabled={submitting}
-            className="mt-4 flex items-center justify-center gap-2 bg-[#8fbc8f] py-4 text-[10px] uppercase tracking-[.17em] text-[#111311] font-semibold hover:bg-[#7ea87e] transition disabled:opacity-60"
+            className="mt-4 flex items-center justify-center gap-2 bg-[#8fbc8f] py-4 text-[10px] uppercase tracking-[.17em] text-[#111311] font-semibold hover:bg-[#7ea87e] transition disabled:opacity-60 cursor-pointer"
           >
             {submitting && <Loader2 size={14} className="animate-spin text-[#111311]" />}
             <span>{submitting ? 'Đang tạo đơn hàng...' : 'Place order'}</span>
@@ -778,7 +973,10 @@ function PaymentView({ items, cart, subtotal, go, onRequireLogin }: { items: Pro
           </button>
         </form>
         <aside className="h-fit bg-white p-5 ring-1 ring-[#dce3dc]">
-          <h2 className="font-serif text-2xl">Your order</h2>
+          <div className="flex items-center justify-between border-b border-[#edf0ed] pb-3">
+            <h2 className="font-serif text-2xl">Your order</h2>
+            <span className="text-[11px] font-semibold text-[#3b6340] bg-[#d8f3dc] px-2 py-0.5 rounded-full">{items.length} món</span>
+          </div>
           {items.map((p) => (
             <div key={p.id} className="mt-4 flex justify-between gap-4 border-b border-[#edf0ed] pb-3 text-xs">
               <span><strong className="block text-[9px] uppercase tracking-[.14em] text-[#8fbc8f]">{p.brand}</strong>{p.name} × {cart[p.id]}</span>
