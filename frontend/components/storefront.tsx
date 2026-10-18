@@ -7,6 +7,7 @@ import {
   Check,
   Heart,
   Loader2,
+  Lock,
   LogOut,
   Menu,
   Minus,
@@ -17,6 +18,7 @@ import {
   UserRound,
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
+import { useCart } from '@/lib/cart-context'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -93,12 +95,22 @@ export default function Storefront({ initialView = 'home' }: { initialView?: Sto
   const [view, setView] = useState<StoreView>(initialView)
   const [activeCategory, setActiveCategory] = useState('All')
 
-  const [cart, setCart] = useState<Cart>({})
   const [selected, setSelected] = useState<Product | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [redirectAfterAuth, setRedirectAfterAuth] = useState<StoreView | null>(null)
 
   const { user, isAuthenticated, logout } = useAuth()
+  const { cart, count, toastMessage, showToast, addToCart, changeQuantity } = useCart()
+
+  const handleFavorite = (product: Product) => {
+    if (!isAuthenticated) {
+      setRedirectAfterAuth(view)
+      go('login')
+    } else {
+      addToCart(product.id, 1)
+    }
+  }
 
   // ── API state ──────────────────────────────────────────────────────────────
   const [products, setProducts] = useState<Product[]>([])
@@ -132,12 +144,18 @@ export default function Storefront({ initialView = 'home' }: { initialView?: Sto
 
   const filtered = activeCategory === 'All' ? products : products.filter((p) => p.category === activeCategory)
   const cartItems = products.filter((p) => cart[p.id])
-  const count = Object.values(cart).reduce((a, b) => a + b, 0)
   const subtotal = cartItems.reduce((sum, p) => sum + p.price * (cart[p.id] ?? 0), 0)
 
   const go = (next: typeof view) => { setView(next); setMenuOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }
-  const add = (id: string) => setCart((c) => ({ ...c, [id]: (c[id] || 0) + 1 }))
-  const change = (id: string, delta: number) => setCart((c) => { const next = Math.max(0, (c[id] || 0) + delta); const copy = { ...c }; if (next) copy[id] = next; else delete copy[id]; return copy })
+  const add = (id: string) => {
+    if (!isAuthenticated) {
+      setRedirectAfterAuth(view)
+      go('login')
+      return
+    }
+    addToCart(id)
+  }
+  const change = (id: string, delta: number) => changeQuantity(id, delta)
 
   // ── Loading / Error states ─────────────────────────────────────────────────
   const ProductsGrid = ({ items }: { items: Product[] }) => {
@@ -160,7 +178,7 @@ export default function Storefront({ initialView = 'home' }: { initialView?: Sto
         <p className="mt-5 font-serif text-3xl">No products found.</p>
       </div>
     )
-    return <>{items.map((p) => <ProductCard key={p.id} product={p} onOpen={() => { setSelected(p); go('detail') }} onAdd={() => add(p.id)} />)}</>
+    return <>{items.map((p) => <ProductCard key={p.id} product={p} onOpen={() => { setSelected(p); go('detail') }} onAdd={() => add(p.id)} onFavorite={() => handleFavorite(p)} />)}</>
   }
 
 
@@ -241,34 +259,385 @@ export default function Storefront({ initialView = 'home' }: { initialView?: Sto
 
     {view === 'products' && <main className="mx-auto max-w-[1440px] px-5 py-10 lg:px-10 lg:py-14"><PageHeading eyebrow="The collection" title="Find your moment." /><div className="mb-9 flex gap-2 overflow-x-auto pb-2">{categories.map((c) => <button key={c} onClick={() => setActiveCategory(c)} className={`shrink-0 rounded-full border px-5 py-2 text-[10px] uppercase tracking-[.14em] transition ${activeCategory === c ? 'border-[#8fbc8f] bg-[#d8f3dc]' : 'border-[#d8ddd7] bg-white'}`}>{c}</button>)}</div><div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 lg:gap-5"><ProductsGrid items={filtered} /></div></main>}
     {view === 'detail' && selected && <main className="mx-auto max-w-[1180px] px-5 py-8 lg:px-10 lg:py-14"><button onClick={() => go('products')} className="mb-8 flex items-center gap-2 text-[10px] uppercase tracking-[.15em]"><ArrowLeft size={15} /> Back to collection</button><div className="grid gap-8 lg:grid-cols-2"><img src={selected.image} alt={selected.name} className="aspect-[4/5] w-full object-cover" /><div className="flex flex-col justify-center"><p className="text-[10px] uppercase tracking-[.22em] text-[#8fbc8f]">{selected.brand}</p><p className="mt-2 text-[10px] uppercase tracking-[.16em] text-[#68736b]">{selected.category}</p><h1 className="mt-3 font-serif text-5xl">{selected.name}</h1><p className="mt-4 text-lg">${selected.price.toFixed(2)}</p><p className="mt-7 max-w-md text-sm leading-7 text-[#5e675f]">{selected.description}</p><div className="mt-8 border-y border-[#dbe4dc] py-5 text-xs"><span className="text-[#68736b]">Color</span><strong className="ml-10">{selected.color}</strong></div><button onClick={() => add(selected.id)} className="mt-7 flex w-full items-center justify-center gap-3 bg-[#8fbc8f] py-4 text-[11px] uppercase tracking-[.15em]">Add to bag <ShoppingBag size={16} /></button><button onClick={() => go('cart')} className="mt-3 w-full border border-[#1d241f] py-4 text-[11px] uppercase tracking-[.15em]">View bag ({count})</button></div></div></main>}
-    {view === 'cart' && <CartView items={cartItems} cart={cart} subtotal={subtotal} change={change} go={go} />}
-    {view === 'payment' && <PaymentView items={cartItems} cart={cart} subtotal={subtotal} go={go} />}
-    {(view === 'login' || view === 'register') && <AuthView mode={view} go={go} />}
+    {view === 'cart' && (
+      <CartView
+        items={cartItems}
+        cart={cart}
+        subtotal={subtotal}
+        change={change}
+        go={go}
+        isAuthenticated={isAuthenticated}
+        onRequireLogin={() => {
+          setRedirectAfterAuth('cart')
+          go('login')
+        }}
+        onProceedToCheckout={() => {
+          if (!isAuthenticated) {
+            setRedirectAfterAuth('payment')
+            go('login')
+          } else {
+            go('payment')
+          }
+        }}
+      />
+    )}
+    {view === 'payment' && (
+      <PaymentView
+        items={cartItems}
+        cart={cart}
+        subtotal={subtotal}
+        go={go}
+        onRequireLogin={() => {
+          setRedirectAfterAuth('payment')
+          go('login')
+        }}
+      />
+    )}
+    {(view === 'login' || view === 'register') && (
+      <AuthView
+        mode={view}
+        go={go}
+        redirectAfterAuth={redirectAfterAuth}
+        onClearRedirect={() => setRedirectAfterAuth(null)}
+      />
+    )}
     {view !== 'login' && view !== 'register' && <footer className="border-t border-[#dce3dc] bg-white px-5 py-8 text-center text-[10px] uppercase tracking-[.16em] text-[#68736b]"><span className="font-serif text-xl tracking-[.16em] text-[#182019]">LUMORA</span><p className="mt-3">Quiet luxury, made for every moment.</p></footer>}
+
+    {toastMessage && (
+      <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 rounded-lg border border-[#8fbc8f]/40 bg-[#161a16] px-4 py-3 text-white shadow-2xl animate-in fade-in slide-in-from-bottom-4">
+        <Check size={16} className="text-[#8fbc8f]" />
+        <span className="text-xs font-medium">{toastMessage}</span>
+      </div>
+    )}
   </div>
 }
 
-function ProductCard({ product, onOpen, onAdd }: { product: Product; onOpen: () => void; onAdd: () => void }) { return <article className="group relative min-w-0"><div className="relative cursor-pointer overflow-hidden bg-[#eef2ed]" onClick={onOpen}><img src={product.image} alt={product.name} className="aspect-[.78] w-full object-cover transition duration-500 group-hover:scale-105" /><button aria-label={`Add ${product.name} to bag`} onClick={(e) => { e.stopPropagation(); onAdd() }} className="absolute bottom-3 right-3 flex size-9 items-center justify-center rounded-full bg-white/90 text-[#182019] shadow-sm"><ShoppingBag size={15} /></button><button aria-label={`Favorite ${product.name}`} className="absolute right-3 top-3 text-white"><Heart size={17} strokeWidth={1.5} /></button></div><div className="px-1 py-3"><p className="text-[9px] uppercase tracking-[.18em] text-[#8fbc8f]">{product.brand}</p><h3 className="mt-1 truncate text-[11px] uppercase tracking-[.05em]">{product.name}</h3><p className="mt-1 text-xs">${product.price.toFixed(2)}</p><button onClick={onOpen} className="mt-3 hidden w-full border border-[#aeb8af] py-2 text-[9px] uppercase tracking-[.12em] sm:block">Shop now <ArrowRight className="ml-2 inline" size={12} /></button></div></article> }
+function ProductCard({ product, onOpen, onAdd, onFavorite }: { product: Product; onOpen: () => void; onAdd: () => void; onFavorite?: () => void }) {
+  return (
+    <article className="group relative min-w-0">
+      <div className="relative cursor-pointer overflow-hidden bg-[#eef2ed]" onClick={onOpen}>
+        <img src={product.image} alt={product.name} className="aspect-[.78] w-full object-cover transition duration-500 group-hover:scale-105" />
+        <button aria-label={`Add ${product.name} to bag`} onClick={(e) => { e.stopPropagation(); onAdd() }} className="absolute bottom-3 right-3 flex size-9 items-center justify-center rounded-full bg-white/90 text-[#182019] shadow-sm"><ShoppingBag size={15} /></button>
+        <button
+          aria-label={`Favorite ${product.name}`}
+          onClick={(e) => {
+            e.stopPropagation()
+            onFavorite?.()
+          }}
+          className="absolute right-3 top-3 text-white hover:text-red-400 transition"
+        >
+          <Heart size={17} strokeWidth={1.5} />
+        </button>
+      </div>
+      <div className="px-1 py-3">
+        <p className="text-[9px] uppercase tracking-[.18em] text-[#8fbc8f]">{product.brand}</p>
+        <h3 className="mt-1 truncate text-[11px] uppercase tracking-[.05em]">{product.name}</h3>
+        <p className="mt-1 text-xs">${product.price.toFixed(2)}</p>
+        <button onClick={onOpen} className="mt-3 hidden w-full border border-[#aeb8af] py-2 text-[9px] uppercase tracking-[.12em] sm:block">Shop now <ArrowRight className="ml-2 inline" size={12} /></button>
+      </div>
+    </article>
+  )
+}
 function Benefits() { return <div className="grid grid-cols-2 gap-5 border-t border-[#dce3dc] bg-white px-5 py-7 text-center text-[9px] uppercase tracking-[.12em] text-[#68736b] md:grid-cols-4"><div><Check className="mx-auto mb-2 text-[#8fbc8f]" size={21} /><p>Secure payment</p></div><div><Check className="mx-auto mb-2 text-[#8fbc8f]" size={21} /><p>Easy returns</p></div><div><Check className="mx-auto mb-2 text-[#8fbc8f]" size={21} /><p>Free shipping</p></div><div><Check className="mx-auto mb-2 text-[#8fbc8f]" size={21} /><p>24/7 support</p></div></div> }
 function PageHeading({ eyebrow, title }: { eyebrow: string; title: string }) { return <div className="mb-9"><p className="text-[10px] uppercase tracking-[.25em] text-[#8fbc8f]">{eyebrow}</p><h1 className="mt-2 font-serif text-5xl tracking-[-.04em] md:text-6xl">{title}</h1></div> }
 
-function CartView({ items, cart, subtotal, change, go }: { items: Product[]; cart: Cart; subtotal: number; change: (id: string, delta: number) => void; go: (v: 'home' | 'products' | 'login' | 'register' | 'cart' | 'payment' | 'detail') => void }) { return <main className="mx-auto max-w-[1180px] px-5 py-10 lg:px-10 lg:py-14"><PageHeading eyebrow="Your selection" title="Shopping bag." />{items.length ? <div className="grid gap-10 lg:grid-cols-[1fr_360px]"><div className="flex flex-col gap-5">{items.map((p) => <div key={p.id} className="flex gap-4 border-b border-[#dce3dc] pb-5"><img src={p.image} alt={p.name} className="size-28 object-cover sm:size-36" /><div className="flex min-w-0 flex-1 flex-col justify-between"><div><p className="text-[9px] uppercase tracking-[.16em] text-[#8fbc8f]">{p.brand}</p><h3 className="mt-1 text-sm uppercase tracking-[.06em]">{p.name}</h3><p className="mt-1 text-xs text-[#68736b]">{p.color}</p></div><div className="flex items-end justify-between"><div className="flex items-center border border-[#dce3dc]"><button aria-label="Decrease quantity" onClick={() => change(p.id, -1)} className="p-2"><Minus size={13} /></button><span className="w-7 text-center text-xs">{cart[p.id]}</span><button aria-label="Increase quantity" onClick={() => change(p.id, 1)} className="p-2"><Plus size={13} /></button></div><strong className="text-sm">${(p.price * (cart[p.id] ?? 0)).toFixed(2)}</strong></div></div></div>)}</div><aside className="h-fit bg-[#d8f3dc] p-6"><h2 className="font-serif text-2xl">Order summary</h2><div className="mt-6 flex justify-between border-b border-[#a8c9ad] pb-4 text-sm"><span>Subtotal</span><strong>${subtotal.toFixed(2)}</strong></div><div className="flex justify-between py-4 text-sm"><span>Shipping</span><span>Free</span></div><div className="flex justify-between border-t border-[#a8c9ad] pt-4"><strong>Total</strong><strong>${subtotal.toFixed(2)}</strong></div><button onClick={() => go('payment')} className="mt-6 w-full bg-[#182019] py-4 text-[10px] uppercase tracking-[.17em] text-white">Proceed to checkout <ArrowRight className="ml-2 inline" size={14} /></button></aside></div> : <div className="py-20 text-center"><ShoppingBag className="mx-auto text-[#8fbc8f]" size={35} /><p className="mt-5 font-serif text-3xl">Your bag is empty.</p><button onClick={() => go('products')} className="mt-6 border border-[#182019] px-6 py-3 text-[10px] uppercase tracking-[.16em]">Explore collection</button></div>}</main> }
-function PaymentView({ items, cart, subtotal, go }: { items: Product[]; cart: Cart; subtotal: number; go: (v: StoreView) => void }) {
-  const { user } = useAuth()
+function CartView({
+  items,
+  cart,
+  subtotal,
+  change,
+  go,
+  onProceedToCheckout,
+  isAuthenticated,
+  onRequireLogin,
+}: {
+  items: Product[]
+  cart: Cart
+  subtotal: number
+  change: (id: string, delta: number) => void
+  go: (v: StoreView) => void
+  onProceedToCheckout: () => void
+  isAuthenticated?: boolean
+  onRequireLogin?: () => void
+}) {
+  return (
+    <main className="mx-auto max-w-[1180px] px-5 py-10 lg:px-10 lg:py-14">
+      <PageHeading eyebrow="Your selection" title="Shopping bag." />
+      {items.length ? (
+        <div className="grid gap-10 lg:grid-cols-[1fr_360px]">
+          <div className="flex flex-col gap-5">
+            {items.map((p) => (
+              <div key={p.id} className="flex gap-4 border-b border-[#dce3dc] pb-5">
+                <img src={p.image} alt={p.name} className="size-28 object-cover sm:size-36" />
+                <div className="flex min-w-0 flex-1 flex-col justify-between">
+                  <div>
+                    <p className="text-[9px] uppercase tracking-[.16em] text-[#8fbc8f]">{p.brand}</p>
+                    <h3 className="mt-1 text-sm uppercase tracking-[.06em]">{p.name}</h3>
+                    <p className="mt-1 text-xs text-[#68736b]">{p.color}</p>
+                  </div>
+                  <div className="flex items-end justify-between">
+                    <div className="flex items-center border border-[#dce3dc]">
+                      <button aria-label="Decrease quantity" onClick={() => change(p.id, -1)} className="p-2"><Minus size={13} /></button>
+                      <span className="w-7 text-center text-xs">{cart[p.id]}</span>
+                      <button aria-label="Increase quantity" onClick={() => change(p.id, 1)} className="p-2"><Plus size={13} /></button>
+                    </div>
+                    <strong className="text-sm">${(p.price * (cart[p.id] ?? 0)).toFixed(2)}</strong>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <aside className="h-fit bg-[#d8f3dc] p-6">
+            <h2 className="font-serif text-2xl">Order summary</h2>
+            <div className="mt-6 flex justify-between border-b border-[#a8c9ad] pb-4 text-sm"><span>Subtotal</span><strong>${subtotal.toFixed(2)}</strong></div>
+            <div className="flex justify-between py-4 text-sm"><span>Shipping</span><span>Free</span></div>
+            <div className="flex justify-between border-t border-[#a8c9ad] pt-4"><strong>Total</strong><strong>${subtotal.toFixed(2)}</strong></div>
+            <button
+              onClick={onProceedToCheckout}
+              className="mt-6 flex w-full items-center justify-center gap-2 bg-[#182019] py-4 text-[10px] uppercase tracking-[.17em] text-white hover:bg-[#2c382e] transition"
+            >
+              <span>Proceed to checkout</span>
+              <ArrowRight size={14} />
+            </button>
+          </aside>
+        </div>
+      ) : (
+        <div className="py-20 text-center">
+          <ShoppingBag className="mx-auto text-[#8fbc8f]" size={35} />
+          <p className="mt-5 font-serif text-3xl">Your bag is empty.</p>
+          {!isAuthenticated ? (
+            <div className="mt-5 flex flex-col items-center gap-3">
+              <p className="text-xs text-[#68736b]">Bạn chưa đăng nhập. Vui lòng đăng nhập để xem và quản lý giỏ hàng của bạn.</p>
+              <button
+                onClick={onRequireLogin || (() => go('login'))}
+                className="mt-2 bg-[#182019] px-6 py-3 text-[10px] uppercase tracking-[.16em] text-white hover:bg-[#2c382e] transition"
+              >
+                Đăng nhập ngay
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => go('products')} className="mt-6 border border-[#182019] px-6 py-3 text-[10px] uppercase tracking-[.16em]">
+              Explore collection
+            </button>
+          )}
+        </div>
+      )}
+    </main>
+  )
+}
+
+function PaymentView({ items, cart, subtotal, go, onRequireLogin }: { items: Product[]; cart: Cart; subtotal: number; go: (v: StoreView) => void; onRequireLogin: () => void }) {
+  const { user, token, isAuthenticated } = useAuth()
+  const { clearCart } = useCart()
+
+  const [fullName, setFullName] = useState('')
+  const [email, setEmail] = useState('')
+  const [address, setAddress] = useState('')
+  const [city, setCity] = useState('')
+  const [postalCode, setPostalCode] = useState('')
+
+  const [submitting, setSubmitting] = useState(false)
+  const [orderError, setOrderError] = useState<string | null>(null)
+  const [createdOrderId, setCreatedOrderId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (user) {
+      setFullName(`${user.firstName || ''} ${user.lastName || ''}`.trim())
+      setEmail(user.email || '')
+      setAddress(user.address || '')
+    }
+  }, [user])
+
+  // Login Check Guard
+  if (!isAuthenticated) {
+    return (
+      <main className="mx-auto max-w-[700px] px-5 py-16 text-center">
+        <div className="rounded-2xl border border-[#dce3dc] bg-white p-10 shadow-sm">
+          <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-full bg-[#d8f3dc] text-[#182019]">
+            <Lock size={26} className="text-[#2b4c30]" />
+          </div>
+          <p className="text-[10px] uppercase tracking-[.25em] text-[#8fbc8f] font-semibold">Bảo mật thanh toán</p>
+          <h1 className="mt-2 font-serif text-3xl md:text-4xl text-[#182019]">Yêu cầu đăng nhập tài khoản</h1>
+          <p className="mt-4 text-xs text-[#5e675f] leading-relaxed max-w-md mx-auto">
+            Để bảo mật đơn hàng và theo dõi lộ trình vận chuyển, quý khách vui lòng đăng nhập trước khi tiến hành thanh toán.
+          </p>
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button
+              onClick={onRequireLogin}
+              className="flex w-full sm:w-auto items-center justify-center gap-2 bg-[#182019] px-7 py-3.5 text-[10px] uppercase tracking-[.18em] text-white hover:bg-[#2c382e] transition"
+            >
+              <span>Đăng nhập ngay</span>
+              <ArrowRight size={14} />
+            </button>
+            <button
+              onClick={() => go('cart')}
+              className="w-full sm:w-auto border border-[#182019] px-6 py-3.5 text-[10px] uppercase tracking-[.18em] text-[#182019] hover:bg-black/5 transition"
+            >
+              Quay lại giỏ hàng
+            </button>
+          </div>
+        </div>
+      </main>
+    )
+  }
+
+  // Order Success Screen
+  if (createdOrderId) {
+    return (
+      <main className="mx-auto max-w-[700px] px-5 py-16 text-center">
+        <div className="rounded-2xl border border-emerald-200 bg-white p-10 shadow-sm">
+          <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+            <Check size={32} />
+          </div>
+          <p className="text-[10px] uppercase tracking-[.25em] text-emerald-600 font-semibold">Đặt hàng thành công</p>
+          <h1 className="mt-2 font-serif text-3xl md:text-4xl text-[#182019]">Cảm ơn quý khách đã mua sắm!</h1>
+          <p className="mt-4 text-xs text-[#5e675f] leading-relaxed max-w-md mx-auto">
+            Đơn hàng của bạn đã được ghi nhận vào hệ thống với mã đơn:
+          </p>
+          <div className="mt-3 inline-block rounded-lg bg-gray-50 border border-gray-200 px-4 py-2 font-mono text-sm font-semibold text-[#182019]">
+            {createdOrderId}
+          </div>
+          <p className="mt-4 text-[11px] text-[#68736b]">
+            Đơn hàng đã được đồng bộ với hệ thống Quản trị. Chúng tôi sẽ liên hệ để xác nhận sớm nhất.
+          </p>
+          <div className="mt-8 flex justify-center">
+            <button
+              onClick={() => go('products')}
+              className="bg-[#182019] px-8 py-3.5 text-[10px] uppercase tracking-[.18em] text-white hover:bg-[#2c382e] transition"
+            >
+              Tiếp tục mua sắm
+            </button>
+          </div>
+        </div>
+      </main>
+    )
+  }
+
+  const handlePlaceOrder = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!address.trim()) {
+      setOrderError('Vui lòng nhập địa chỉ giao hàng.')
+      return
+    }
+
+    setSubmitting(true)
+    setOrderError(null)
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/v1/orders`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          shipping_address: address.trim(),
+          shipping_city: city.trim() || 'Hanoi',
+          recipient_first_name: user?.firstName || fullName.trim().split(' ')[0] || 'Customer',
+          recipient_last_name: user?.lastName || fullName.trim().split(' ').slice(1).join(' ') || '',
+          recipient_email: email.trim(),
+        }),
+      })
+
+      const json = await res.json()
+      if (!res.ok) {
+        throw new Error(json.message || 'Không thể tạo đơn hàng. Vui lòng thử lại.')
+      }
+
+      const orderId = json.data?.id
+      if (orderId && items.length > 0) {
+        for (const item of items) {
+          await fetch(`${API_BASE_URL}/v1/order-items`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              order_id: orderId,
+              product_id: item.id,
+              quantity: cart[item.id] || 1,
+              price: item.price,
+            }),
+          }).catch((err) => console.warn('[OrderItems] Warning:', err))
+        }
+      }
+
+      clearCart()
+      setCreatedOrderId(orderId || 'ORD-' + Date.now().toString(36).toUpperCase())
+    } catch (err: any) {
+      setOrderError(err.message || 'Lỗi khi gửi đơn hàng.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   return (
     <main className="mx-auto max-w-[1180px] px-5 py-10 lg:px-10 lg:py-14">
       <PageHeading eyebrow="Almost yours" title="Checkout." />
       <div className="grid gap-10 lg:grid-cols-[1fr_380px]">
-        <form className="flex flex-col gap-5" onSubmit={(e) => e.preventDefault()}>
+        <form className="flex flex-col gap-5" onSubmit={handlePlaceOrder}>
           <h2 className="font-serif text-2xl">Delivery details</h2>
-          <input required defaultValue={user ? `${user.firstName} ${user.lastName}`.trim() : ''} aria-label="Full name" placeholder="Full name" className="border-b border-[#aeb8af] bg-transparent px-1 py-4 text-sm outline-none focus:border-[#8fbc8f]" />
-          <input required defaultValue={user?.email || ''} type="email" aria-label="Email address" placeholder="Email address" className="border-b border-[#aeb8af] bg-transparent px-1 py-4 text-sm outline-none focus:border-[#8fbc8f]" />
-          <input required defaultValue={user?.address || ''} aria-label="Address" placeholder="Address" className="border-b border-[#aeb8af] bg-transparent px-1 py-4 text-sm outline-none focus:border-[#8fbc8f]" />
+
+          {orderError && (
+            <div className="flex items-start gap-2.5 rounded border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+              <AlertCircle size={15} className="shrink-0 mt-0.5 text-red-600" />
+              <span>{orderError}</span>
+            </div>
+          )}
+
+          <input
+            required
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            aria-label="Full name"
+            placeholder="Full name"
+            className="border-b border-[#aeb8af] bg-transparent px-1 py-4 text-sm outline-none focus:border-[#8fbc8f]"
+          />
+          <input
+            required
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            aria-label="Email address"
+            placeholder="Email address"
+            className="border-b border-[#aeb8af] bg-transparent px-1 py-4 text-sm outline-none focus:border-[#8fbc8f]"
+          />
+          <input
+            required
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            aria-label="Address"
+            placeholder="Address"
+            className="border-b border-[#aeb8af] bg-transparent px-1 py-4 text-sm outline-none focus:border-[#8fbc8f]"
+          />
           <div className="grid grid-cols-2 gap-5">
-            <input required aria-label="City" placeholder="City" className="border-b border-[#aeb8af] bg-transparent px-1 py-4 text-sm outline-none focus:border-[#8fbc8f]" />
-            <input required aria-label="Postal code" placeholder="Postal code" className="border-b border-[#aeb8af] bg-transparent px-1 py-4 text-sm outline-none focus:border-[#8fbc8f]" />
+            <input
+              required
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              aria-label="City"
+              placeholder="City"
+              className="border-b border-[#aeb8af] bg-transparent px-1 py-4 text-sm outline-none focus:border-[#8fbc8f]"
+            />
+            <input
+              required
+              value={postalCode}
+              onChange={(e) => setPostalCode(e.target.value)}
+              aria-label="Postal code"
+              placeholder="Postal code"
+              className="border-b border-[#aeb8af] bg-transparent px-1 py-4 text-sm outline-none focus:border-[#8fbc8f]"
+            />
           </div>
-          <button className="mt-4 bg-[#8fbc8f] py-4 text-[10px] uppercase tracking-[.17em]" onClick={() => alert('Thank you for your order!')}>Place order <Check className="ml-2 inline" size={14} /></button>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="mt-4 flex items-center justify-center gap-2 bg-[#8fbc8f] py-4 text-[10px] uppercase tracking-[.17em] text-[#111311] font-semibold hover:bg-[#7ea87e] transition disabled:opacity-60"
+          >
+            {submitting && <Loader2 size={14} className="animate-spin text-[#111311]" />}
+            <span>{submitting ? 'Đang tạo đơn hàng...' : 'Place order'}</span>
+            {!submitting && <Check size={14} />}
+          </button>
         </form>
         <aside className="h-fit bg-white p-5 ring-1 ring-[#dce3dc]">
           <h2 className="font-serif text-2xl">Your order</h2>
@@ -288,7 +657,7 @@ function PaymentView({ items, cart, subtotal, go }: { items: Product[]; cart: Ca
   )
 }
 
-function AuthView({ mode, go }: { mode: 'login' | 'register'; go: (v: StoreView) => void }) {
+function AuthView({ mode, go, redirectAfterAuth, onClearRedirect }: { mode: 'login' | 'register'; go: (v: StoreView) => void; redirectAfterAuth?: StoreView | null; onClearRedirect?: () => void }) {
   const login = mode === 'login'
   const { login: doLogin, register: doRegister, isAuthenticated } = useAuth()
 
@@ -323,7 +692,9 @@ function AuthView({ mode, go }: { mode: 'login' | 'register'; go: (v: StoreView)
       setLoading(false)
       if (res.success) {
         setSuccessMessage('Đăng nhập thành công! Đang chuyển hướng...')
-        setTimeout(() => go('products'), 600)
+        const target = redirectAfterAuth || 'products'
+        onClearRedirect?.()
+        setTimeout(() => go(target), 600)
       } else {
         setErrorMessage(res.error || 'Đăng nhập không thành công. Vui lòng kiểm tra lại.')
       }
@@ -359,7 +730,9 @@ function AuthView({ mode, go }: { mode: 'login' | 'register'; go: (v: StoreView)
       setLoading(false)
       if (res.success) {
         setSuccessMessage('Đăng ký tài khoản thành công! Đang đăng nhập...')
-        setTimeout(() => go('products'), 700)
+        const target = redirectAfterAuth || 'products'
+        onClearRedirect?.()
+        setTimeout(() => go(target), 700)
       } else {
         setErrorMessage(res.error || 'Đăng ký không thành công. Email có thể đã tồn tại.')
       }
@@ -411,6 +784,20 @@ function AuthView({ mode, go }: { mode: 'login' | 'register'; go: (v: StoreView)
           <p className="mt-1 text-xs text-[#68736b]">
             {login ? 'Nhập thông tin tài khoản của bạn để tiếp tục' : 'Tạo tài khoản mới để bắt đầu trải nghiệm'}
           </p>
+
+          {redirectAfterAuth === 'payment' && (
+            <div className="mt-4 flex items-center gap-2 rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+              <Lock size={15} className="shrink-0 text-amber-600" />
+              <span>Vui lòng đăng nhập tài khoản để tiếp tục thanh toán đơn hàng của bạn.</span>
+            </div>
+          )}
+
+          {redirectAfterAuth && redirectAfterAuth !== 'payment' && (
+            <div className="mt-4 flex items-center gap-2 rounded border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+              <Lock size={15} className="shrink-0 text-amber-600" />
+              <span>Vui lòng đăng nhập tài khoản để thêm sản phẩm vào giỏ hàng và mua sắm.</span>
+            </div>
+          )}
 
           {/* Feedback alerts */}
           {errorMessage && (

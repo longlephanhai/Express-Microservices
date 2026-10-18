@@ -9,6 +9,17 @@ export class CartUseCase implements ICartUseCase {
     constructor(private readonly repository: IRepository) { }
 
     async createCartItem(data: CartCreateDTO): Promise<string> {
+        const existingItems = await this.repository.list(
+            { userId: data.userId, productId: data.productId },
+            { page: 1, limit: 10 }
+        );
+        const existing = existingItems.find(item => item.attribute === data.attribute);
+        if (existing) {
+            const updatedQty = existing.quantity + data.quantity;
+            await this.repository.update(existing.id, { quantity: updatedQty });
+            return existing.id;
+        }
+
         const newId = v7();
         const cart: Cart = {
             id: newId,
