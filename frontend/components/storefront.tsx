@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { ArrowLeft, ArrowRight, Check, Heart, Menu, Minus, Plus, Search, ShoppingBag, UserRound } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -153,6 +154,7 @@ export default function Storefront({ initialView = 'home' }: { initialView?: Sto
         <nav className={`${menuOpen ? 'absolute left-0 top-[72px] flex' : 'hidden'} w-full flex-col gap-5 bg-[#111311] px-6 py-6 text-[11px] uppercase tracking-[.18em] lg:static lg:flex lg:w-auto lg:flex-row lg:bg-transparent lg:p-0`}>
           {['New In', 'Clothing', 'Dresses', 'Sets', 'Accessories'].map((label) => <button key={label} onClick={() => go('products')} className="text-left transition hover:text-[#8fbc8f]">{label}</button>)}
           <button onClick={() => go('products')} className="text-left text-[#8fbc8f]">Sale</button>
+          <Link href="/brands" className="text-left text-white/90 transition hover:text-[#8fbc8f] flex items-center gap-1">Brands <span className="rounded bg-[#8fbc8f]/20 px-1 py-0.5 text-[8px] text-[#8fbc8f]">CRUD</span></Link>
         </nav>
         <div className="flex items-center gap-4"><button aria-label="Search" className="hidden sm:block"><Search size={19} strokeWidth={1.4} /></button><button aria-label="Account" onClick={() => go('login')}><UserRound size={19} strokeWidth={1.4} /></button><button aria-label="Shopping bag" className="relative" onClick={() => go('cart')}><ShoppingBag size={20} strokeWidth={1.4} /><span className="absolute -right-2 -top-2 flex size-4 items-center justify-center rounded-full bg-[#8fbc8f] text-[9px] text-[#111311]">{count}</span></button></div>
       </div>
@@ -172,7 +174,7 @@ export default function Storefront({ initialView = 'home' }: { initialView?: Sto
     {view === 'cart' && <CartView items={cartItems} cart={cart} subtotal={subtotal} change={change} go={go} />}
     {view === 'payment' && <PaymentView items={cartItems} cart={cart} subtotal={subtotal} go={go} />}
     {(view === 'login' || view === 'register') && <AuthView mode={view} go={go} />}
-    {view !== 'login' && view !== 'register' && <footer className="border-t border-[#dce3dc] bg-white px-5 py-8 text-center text-[10px] uppercase tracking-[.16em] text-[#68736b]"><span className="font-serif text-xl tracking-[.16em] text-[#182019]">LUMORA</span><p className="mt-3">Quiet luxury, made for every moment.</p></footer>}
+    {view !== 'login' && view !== 'register' && <footer className="border-t border-[#dce3dc] bg-white px-5 py-8 text-center text-[10px] uppercase tracking-[.16em] text-[#68736b]"><span className="font-serif text-xl tracking-[.16em] text-[#182019]">LUMORA</span><p className="mt-3">Quiet luxury, made for every moment.</p><p className="mt-3"><Link href="/brands" className="font-medium text-[#48734e] hover:underline">Quản lý thương hiệu (Brand CRUD)</Link></p></footer>}
   </div>
 }
 
