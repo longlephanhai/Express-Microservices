@@ -45,9 +45,13 @@ function createServiceProxy(targetBaseUrl: string) {
         delete headers["host"];
         delete headers["content-length"];
 
-        if (req.userId) {
-            headers["x-user-id"] = req.userId;
-            headers["x-user-role"] = req.userRole || "user";
+        // if (req.userId) {
+        //     headers["x-user-id"] = req.userId;
+        //     headers["x-user-role"] = req.userRole || "user";
+        // }
+        if ((req as any).userId) {
+            headers["x-user-id"] = (req as any).userId;
+            headers["x-user-role"] = (req as any).userRole || "user";
         }
 
         try {
@@ -102,4 +106,6 @@ app.listen(PORT, () => {
     console.log(`  - /v1/products    -> ${PRODUCT_SERVICE_URL}`);
     console.log(`  - /v1/auth        -> ${USER_SERVICE_URL}`);
     console.log(`  - /v1/users       -> ${USER_SERVICE_URL}`);
+    console.log(`  - /v1/carts       -> ${CART_SERVICE_URL}`); // 👈 Thêm dòng này
+    console.log(`  - /v1/orders      -> ${ORDER_SERVICE_URL}`); // 👈 Thêm dòng này
 });
