@@ -897,19 +897,29 @@ function PaymentView({ items, cart, subtotal, go, onRequireLogin }: { items: Pro
     setOrderError(null)
 
     try {
+      const orderPayload = {
+        shipping_address: address.trim(),
+        shipping_city: city.trim() || 'Hanoi',
+        recipient_first_name: user?.firstName || fullName.trim().split(' ')[0] || 'Customer',
+        recipient_last_name: user?.lastName || fullName.trim().split(' ').slice(1).join(' ') || '',
+        recipient_email: email.trim(),
+        items: items.map((item) => ({
+          product_id: item.id,
+          quantity: Number(cart[item.id]) || 1,
+          price: Number(item.price) || 0,
+          name: (item.name || '').slice(0, 150),
+          image: (item.image || '').slice(0, 200),
+          attribute: (item.color && item.color.trim()) || 'default',
+        })),
+      }
+
       const res = await fetch(`${API_BASE_URL}/v1/orders`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          shipping_address: address.trim(),
-          shipping_city: city.trim() || 'Hanoi',
-          recipient_first_name: user?.firstName || fullName.trim().split(' ')[0] || 'Customer',
-          recipient_last_name: user?.lastName || fullName.trim().split(' ').slice(1).join(' ') || '',
-          recipient_email: email.trim(),
-        }),
+        body: JSON.stringify(orderPayload),
       })
 
       const json = await res.json()
@@ -918,39 +928,12 @@ function PaymentView({ items, cart, subtotal, go, onRequireLogin }: { items: Pro
       }
 
       const orderId = json.data?.id
-      if (orderId && items.length > 0) {
-        for (const item of items) {
-          try {
-            const itemRes = await fetch(`${API_BASE_URL}/v1/order-items`, {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                order_id: orderId,
-                product_id: item.id,
-                quantity: Number(cart[item.id]) || 1,
-                price: Number(item.price) || 0,
-                name: (item.name || '').slice(0, 150),
-                image: (item.image || '').slice(0, 200),
-                attribute: (item.color && item.color.trim()) || 'default',
-              }),
-            })
-            if (!itemRes.ok) {
-              const errBody = await itemRes.text()
-              console.warn('[OrderItems] Warning saving item:', item.name, errBody)
-            }
-          } catch (itemErr) {
-            console.warn('[OrderItems] Network error saving item:', itemErr)
-          }
-        }
-      }
 
       // Remove only the checked-out items from the cart
       await removeItems(items.map((it) => it.id))
       setCreatedOrderId(orderId || 'ORD-' + Date.now().toString(36).toUpperCase())
     } catch (err: any) {
+
       setOrderError(err.message || 'Lỗi khi gửi đơn hàng.')
     } finally {
       setSubmitting(false)
@@ -1078,9 +1061,11 @@ interface OrderRecord {
   tracking_number?: string | null
   status: OrderStatusType
   total_price?: number
+  items?: OrderItemDetail[]
   created_at?: string
   updated_at?: string
 }
+
 
 interface OrderItemDetail {
   id: string
@@ -1173,9 +1158,20 @@ function OrdersView({
       })
       setOrders(list)
 
+      // Pre-fill items from orders if available
+      const itemsMap: Record<string, OrderItemDetail[]> = {}
+      for (const ord of list) {
+        if (ord.items && Array.isArray(ord.items)) {
+          itemsMap[ord.id] = ord.items
+        }
+      }
+      setOrderItemsMap((prev) => ({ ...itemsMap, ...prev }))
+
       if (list.length > 0) {
         setExpandedOrderId(list[0].id)
-        loadOrderItems(list[0].id, clearCache)
+        if (!itemsMap[list[0].id]) {
+          loadOrderItems(list[0].id, clearCache)
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Không thể tải danh sách đơn hàng.')
@@ -1198,12 +1194,13 @@ function OrdersView({
 
     setLoadingItemsMap((prev) => ({ ...prev, [orderId]: true }))
     try {
-      const res = await fetch(`${API_BASE_URL}/v1/order-items?order_id=${orderId}`, {
+      const res = await fetch(`${API_BASE_URL}/v1/orders/${orderId}/items`, {
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       })
+
       if (res.ok) {
         const json = await res.json()
         setOrderItemsMap((prev) => ({ ...prev, [orderId]: json.data || [] }))

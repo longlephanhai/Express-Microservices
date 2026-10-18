@@ -1,9 +1,10 @@
-import { Order, OrderCondDTO, OrderCreateDTO, OrderUpdateDTO } from "../model/dto";
+import { Order, OrderCondDTO, OrderCreateDTO, OrderUpdateDTO, OrderItem } from "../model/dto";
 
 // Business logic layer
 export interface IOrderQueryUseCase {
   getDetailOrder(id: string): Promise<Order | null>;
   listOrders(cond?: OrderCondDTO): Promise<Order[]>;
+  listOrderItems(orderId: string): Promise<OrderItem[]>;
 }
 
 export interface IOrderCommandUseCase {
@@ -16,6 +17,7 @@ export interface IOrderCommandUseCase {
 export interface IOrderQueryRepository {
   get(id: string): Promise<Order | null>;
   list(cond?: OrderCondDTO): Promise<Order[]>;
+  listItems(orderId: string): Promise<OrderItem[]>;
 }
 
 export interface IOrderCommandRepository {
@@ -23,3 +25,4 @@ export interface IOrderCommandRepository {
   update(id: string, data: OrderUpdateDTO): Promise<boolean>;
   softDelete(id: string): Promise<boolean>;
 }
+

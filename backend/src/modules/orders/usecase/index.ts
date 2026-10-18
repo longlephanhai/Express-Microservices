@@ -6,7 +6,7 @@ import {
   IOrderQueryRepository,
   IOrderQueryUseCase,
 } from "../interface";
-import { OrderCondDTO, OrderCreateDTO, OrderCreateDTOSchema, OrderUpdateDTO, OrderUpdateDTOSchema } from "../model/dto";
+import { OrderCondDTO, OrderCreateDTO, OrderCreateDTOSchema, OrderUpdateDTO, OrderUpdateDTOSchema, OrderItem } from "../model/dto";
 import { Order } from "../model/orders";
 
 export class OrderUseCase implements IOrderQueryUseCase, IOrderCommandUseCase {
@@ -23,6 +23,10 @@ export class OrderUseCase implements IOrderQueryUseCase, IOrderCommandUseCase {
 
   async listOrders(cond: OrderCondDTO = {}): Promise<Order[]> {
     return this.queryRepository.list(cond);
+  }
+
+  async listOrderItems(orderId: string): Promise<OrderItem[]> {
+    return this.queryRepository.listItems(orderId);
   }
 
   async createOrder(data: OrderCreateDTO): Promise<string> {
@@ -45,3 +49,4 @@ export class OrderUseCase implements IOrderQueryUseCase, IOrderCommandUseCase {
     return this.commandRepository.softDelete(id);
   }
 }
+

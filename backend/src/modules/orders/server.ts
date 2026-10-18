@@ -2,7 +2,6 @@ import express from "express";
 import { config } from "dotenv";
 import { createSequelize, syncDatabase } from "../../share/component/sequelize";
 import { setupOrderHexagon } from ".";
-import { setupOrderItemHexagon } from "../order_items";
 
 config();
 
@@ -23,8 +22,8 @@ const DB_NAME = process.env.DB_ORDER_NAME || process.env.DB_NAME;
         });
 
         app.use("/v1", setupOrderHexagon(db));
-        app.use("/v1", setupOrderItemHexagon(db));
         await syncDatabase(db);
+
 
         app.listen(PORT, () => {
             console.log(`[Order Service] Running at http://localhost:${PORT}`);

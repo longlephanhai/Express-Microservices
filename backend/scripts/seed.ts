@@ -8,8 +8,7 @@ import { init as initCategory, CategoryPersistence } from "../src/modules/catego
 import { init as initProduct, ProductPersistence } from "../src/modules/product/insfra/repository/mysql/dto";
 import { init as initUser, UserPersistence } from "../src/modules/user/infras/repository/mysql/dto";
 import { init as initCart, CartPersistence } from "../src/modules/cart/infras/repository/dto";
-import { init as initOrder, OrderPersistence } from "../src/modules/orders/infras/repository/sequelize/dto";
-import { init as initOrderItem, OrderItemPersistence } from "../src/modules/order_items/infras/repository/sequelize/dto";
+import { init as initOrder, OrderPersistence, OrderItemPersistence } from "../src/modules/orders/infras/repository/sequelize/dto";
 
 async function seed() {
     const dbName = process.env.DB_NAME || "demo";
@@ -27,7 +26,7 @@ async function seed() {
         initUser(db);
         initCart(db);
         initOrder(db);
-        initOrderItem(db);
+
 
         // Sync tables if not exist
         await db.sync();

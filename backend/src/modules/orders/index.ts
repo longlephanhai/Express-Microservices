@@ -18,9 +18,14 @@ export function setupOrderHexagon(sequelize: Sequelize) {
   router.post("/orders", http.createAPI.bind(http));
   router.get("/orders", http.listAPI.bind(http));
   router.get("/orders/:id", http.detailAPI.bind(http));
+  router.get("/orders/:id/items", http.listItemsAPI.bind(http));
   router.patch("/orders/:id", http.updateAPI.bind(http));
   router.delete("/orders/:id", http.deleteAPI.bind(http));
 
+  // Backward compatibility for existing consumers calling /order-items?order_id=...
+  router.get("/order-items", http.listItemsAPI.bind(http));
+
   return router;
 }
+
 

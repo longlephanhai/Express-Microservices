@@ -16,11 +16,10 @@ export interface OrderItemRecord {
 
 export const orderItemApi = {
   getOrderItems: async (orderId: string): Promise<ApiResponse<OrderItemRecord[]>> => {
-    const res = await axiosClient.get<ApiResponse<OrderItemRecord[]>>('/v1/order-items', {
-      params: { order_id: orderId },
-    });
+    const res = await axiosClient.get<ApiResponse<OrderItemRecord[]>>(`/v1/orders/${orderId}/items`);
     return res.data;
   },
+
 
   getOrderItemById: async (id: string): Promise<ApiResponse<OrderItemRecord>> => {
     const res = await axiosClient.get<ApiResponse<OrderItemRecord>>(`/v1/order-items/${id}`);

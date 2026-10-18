@@ -1,6 +1,12 @@
 import { DataTypes, Model, Sequelize } from "sequelize";
+
 export class OrderPersistence extends Model {}
+export class OrderItemPersistence extends Model {}
+
 export const modelName = "Order";
+export const orderModelName = "Order";
+export const orderItemModelName = "OrderItem";
+
 export function init(sequelize: Sequelize) {
   OrderPersistence.init({
     id: { type: DataTypes.STRING(36), primaryKey: true },
@@ -16,5 +22,21 @@ export function init(sequelize: Sequelize) {
     recipient_email: { type: DataTypes.STRING(50), allowNull: true },
     tracking_number: { type: DataTypes.STRING(15), allowNull: true, unique: true },
     status: { type: DataTypes.ENUM("pending", "confirmed", "processing", "shipping", "delivered", "completed", "canceled", "refunded", "deleted"), allowNull: true, defaultValue: "pending" },
-  }, { sequelize, modelName, tableName: "orders", timestamps: true, createdAt: "created_at", updatedAt: "updated_at" });
+  }, { sequelize, modelName: orderModelName, tableName: "orders", timestamps: true, createdAt: "created_at", updatedAt: "updated_at" });
+
+  OrderItemPersistence.init({
+    id: { type: DataTypes.STRING(36), primaryKey: true },
+    order_id: { type: DataTypes.STRING(36), allowNull: false },
+    product_id: { type: DataTypes.STRING(36), allowNull: false },
+    attribute: { type: DataTypes.STRING(80), allowNull: true, defaultValue: "default" },
+    image: { type: DataTypes.TEXT, allowNull: true },
+    name: { type: DataTypes.STRING(255), allowNull: true },
+    quantity: { type: DataTypes.INTEGER, allowNull: false },
+    price: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
+  }, { sequelize, modelName: orderItemModelName, tableName: "order_items", timestamps: false, indexes: [{ unique: true, fields: ["order_id", "product_id", "attribute"] }] });
+
+  // Associations
+  OrderPersistence.hasMany(OrderItemPersistence, { foreignKey: "order_id", as: "items" });
+  OrderItemPersistence.belongsTo(OrderPersistence, { foreignKey: "order_id", as: "order" });
 }
+

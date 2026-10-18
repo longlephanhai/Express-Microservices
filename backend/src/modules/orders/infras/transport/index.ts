@@ -106,4 +106,20 @@ export class OrderHttpService {
       return res.status(400).json({ message: (e as Error).message });
     }
   }
+
+  async listItemsAPI(req: Request, res: Response) {
+    const rawId = req.params.id || req.query.order_id;
+    const orderId = Array.isArray(rawId) ? rawId[0] : rawId;
+    if (typeof orderId !== "string" || !orderId) {
+      return res.status(400).json({ message: "Order id is required" });
+    }
+
+    try {
+      const items = await this.useCase.listOrderItems(orderId);
+      return res.status(200).json({ data: items });
+    } catch (e) {
+      return res.status(500).json({ message: (e as Error).message });
+    }
+  }
 }
+

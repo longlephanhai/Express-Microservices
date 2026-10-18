@@ -8,7 +8,6 @@ import { init as initProduct } from "../src/modules/product/insfra/repository/my
 import { init as initUser } from "../src/modules/user/infras/repository/mysql/dto";
 import { init as initCart } from "../src/modules/cart/infras/repository/dto";
 import { init as initOrder } from "../src/modules/orders/infras/repository/sequelize/dto";
-import { init as initOrderItem } from "../src/modules/order_items/infras/repository/sequelize/dto";
 
 async function migrate() {
     const dbName = process.env.DB_NAME || "databasemysql";
@@ -27,7 +26,7 @@ async function migrate() {
         initUser(db);
         initCart(db);
         initOrder(db);
-        initOrderItem(db);
+
 
         console.log("Creating and synchronizing tables on AWS RDS MySQL...");
         await db.sync({ alter: true });
