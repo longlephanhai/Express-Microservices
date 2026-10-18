@@ -1,6 +1,22 @@
 'use client'
 import { useEffect, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, Heart, Menu, Minus, Plus, Search, ShoppingBag, UserRound } from 'lucide-react'
+import {
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Heart,
+  Loader2,
+  LogOut,
+  Menu,
+  Minus,
+  Plus,
+  Search,
+  ShoppingBag,
+  Sparkles,
+  UserRound,
+} from 'lucide-react'
+import { useAuth } from '@/lib/auth-context'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -80,6 +96,9 @@ export default function Storefront({ initialView = 'home' }: { initialView?: Sto
   const [cart, setCart] = useState<Cart>({})
   const [selected, setSelected] = useState<Product | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
+
+  const { user, isAuthenticated, logout } = useAuth()
 
   // ── API state ──────────────────────────────────────────────────────────────
   const [products, setProducts] = useState<Product[]>([])
@@ -154,7 +173,60 @@ export default function Storefront({ initialView = 'home' }: { initialView?: Sto
           {['New In', 'Clothing', 'Dresses', 'Sets', 'Accessories'].map((label) => <button key={label} onClick={() => go('products')} className="text-left transition hover:text-[#8fbc8f]">{label}</button>)}
           <button onClick={() => go('products')} className="text-left text-[#8fbc8f]">Sale</button>
         </nav>
-        <div className="flex items-center gap-4"><button aria-label="Search" className="hidden sm:block"><Search size={19} strokeWidth={1.4} /></button><button aria-label="Account" onClick={() => go('login')}><UserRound size={19} strokeWidth={1.4} /></button><button aria-label="Shopping bag" className="relative" onClick={() => go('cart')}><ShoppingBag size={20} strokeWidth={1.4} /><span className="absolute -right-2 -top-2 flex size-4 items-center justify-center rounded-full bg-[#8fbc8f] text-[9px] text-[#111311]">{count}</span></button></div>
+        <div className="flex items-center gap-4">
+          <button aria-label="Search" className="hidden sm:block"><Search size={19} strokeWidth={1.4} /></button>
+          {isAuthenticated && user ? (
+            <div className="relative">
+              <button
+                aria-label="Account profile"
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
+                className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-xs text-white transition hover:bg-white/20"
+              >
+                <div className="flex size-6 items-center justify-center rounded-full bg-[#8fbc8f] text-[10px] font-bold text-[#111311]">
+                  {user.firstName ? user.firstName.charAt(0).toUpperCase() : 'U'}
+                </div>
+                <span className="max-w-[80px] truncate text-[11px] font-medium hidden sm:inline">
+                  {user.firstName}
+                </span>
+              </button>
+              {userMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-56 rounded-md border border-[#2e372e] bg-[#161a16] p-3 text-white shadow-2xl z-50">
+                  <div className="border-b border-white/10 pb-2 mb-2">
+                    <p className="font-semibold text-xs text-white truncate">{user.firstName} {user.lastName}</p>
+                    <p className="text-[10px] text-white/60 truncate">{user.email}</p>
+                    <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider bg-[#8fbc8f]/20 text-[#8fbc8f]">
+                      {user.role}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      logout()
+                      setUserMenuOpen(false)
+                      go('home')
+                    }}
+                    className="w-full flex items-center gap-2 rounded px-2 py-1.5 text-xs text-red-400 hover:bg-white/10 text-left transition"
+                  >
+                    <LogOut size={13} />
+                    <span>Đăng xuất</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              aria-label="Account"
+              onClick={() => go('login')}
+              className="flex items-center gap-1.5 text-white transition hover:text-[#8fbc8f]"
+            >
+              <UserRound size={19} strokeWidth={1.4} />
+              <span className="hidden sm:inline text-[10px] uppercase tracking-wider">Đăng nhập</span>
+            </button>
+          )}
+          <button aria-label="Shopping bag" className="relative" onClick={() => go('cart')}>
+            <ShoppingBag size={20} strokeWidth={1.4} />
+            <span className="absolute -right-2 -top-2 flex size-4 items-center justify-center rounded-full bg-[#8fbc8f] text-[9px] text-[#111311]">{count}</span>
+          </button>
+        </div>
       </div>
     </header>
 
@@ -181,5 +253,287 @@ function Benefits() { return <div className="grid grid-cols-2 gap-5 border-t bor
 function PageHeading({ eyebrow, title }: { eyebrow: string; title: string }) { return <div className="mb-9"><p className="text-[10px] uppercase tracking-[.25em] text-[#8fbc8f]">{eyebrow}</p><h1 className="mt-2 font-serif text-5xl tracking-[-.04em] md:text-6xl">{title}</h1></div> }
 
 function CartView({ items, cart, subtotal, change, go }: { items: Product[]; cart: Cart; subtotal: number; change: (id: string, delta: number) => void; go: (v: 'home' | 'products' | 'login' | 'register' | 'cart' | 'payment' | 'detail') => void }) { return <main className="mx-auto max-w-[1180px] px-5 py-10 lg:px-10 lg:py-14"><PageHeading eyebrow="Your selection" title="Shopping bag." />{items.length ? <div className="grid gap-10 lg:grid-cols-[1fr_360px]"><div className="flex flex-col gap-5">{items.map((p) => <div key={p.id} className="flex gap-4 border-b border-[#dce3dc] pb-5"><img src={p.image} alt={p.name} className="size-28 object-cover sm:size-36" /><div className="flex min-w-0 flex-1 flex-col justify-between"><div><p className="text-[9px] uppercase tracking-[.16em] text-[#8fbc8f]">{p.brand}</p><h3 className="mt-1 text-sm uppercase tracking-[.06em]">{p.name}</h3><p className="mt-1 text-xs text-[#68736b]">{p.color}</p></div><div className="flex items-end justify-between"><div className="flex items-center border border-[#dce3dc]"><button aria-label="Decrease quantity" onClick={() => change(p.id, -1)} className="p-2"><Minus size={13} /></button><span className="w-7 text-center text-xs">{cart[p.id]}</span><button aria-label="Increase quantity" onClick={() => change(p.id, 1)} className="p-2"><Plus size={13} /></button></div><strong className="text-sm">${(p.price * (cart[p.id] ?? 0)).toFixed(2)}</strong></div></div></div>)}</div><aside className="h-fit bg-[#d8f3dc] p-6"><h2 className="font-serif text-2xl">Order summary</h2><div className="mt-6 flex justify-between border-b border-[#a8c9ad] pb-4 text-sm"><span>Subtotal</span><strong>${subtotal.toFixed(2)}</strong></div><div className="flex justify-between py-4 text-sm"><span>Shipping</span><span>Free</span></div><div className="flex justify-between border-t border-[#a8c9ad] pt-4"><strong>Total</strong><strong>${subtotal.toFixed(2)}</strong></div><button onClick={() => go('payment')} className="mt-6 w-full bg-[#182019] py-4 text-[10px] uppercase tracking-[.17em] text-white">Proceed to checkout <ArrowRight className="ml-2 inline" size={14} /></button></aside></div> : <div className="py-20 text-center"><ShoppingBag className="mx-auto text-[#8fbc8f]" size={35} /><p className="mt-5 font-serif text-3xl">Your bag is empty.</p><button onClick={() => go('products')} className="mt-6 border border-[#182019] px-6 py-3 text-[10px] uppercase tracking-[.16em]">Explore collection</button></div>}</main> }
-function PaymentView({ items, cart, subtotal, go }: { items: Product[]; cart: Cart; subtotal: number; go: (v: 'home' | 'products' | 'login' | 'register' | 'cart' | 'payment' | 'detail') => void }) { return <main className="mx-auto max-w-[1180px] px-5 py-10 lg:px-10 lg:py-14"><PageHeading eyebrow="Almost yours" title="Checkout." /><div className="grid gap-10 lg:grid-cols-[1fr_380px]"><form className="flex flex-col gap-5" onSubmit={(e) => e.preventDefault()}><h2 className="font-serif text-2xl">Delivery details</h2><input required aria-label="Full name" placeholder="Full name" className="border-b border-[#aeb8af] bg-transparent px-1 py-4 text-sm outline-none focus:border-[#8fbc8f]" /><input required type="email" aria-label="Email address" placeholder="Email address" className="border-b border-[#aeb8af] bg-transparent px-1 py-4 text-sm outline-none focus:border-[#8fbc8f]" /><input required aria-label="Address" placeholder="Address" className="border-b border-[#aeb8af] bg-transparent px-1 py-4 text-sm outline-none focus:border-[#8fbc8f]" /><div className="grid grid-cols-2 gap-5"><input required aria-label="City" placeholder="City" className="border-b border-[#aeb8af] bg-transparent px-1 py-4 text-sm outline-none focus:border-[#8fbc8f]" /><input required aria-label="Postal code" placeholder="Postal code" className="border-b border-[#aeb8af] bg-transparent px-1 py-4 text-sm outline-none focus:border-[#8fbc8f]" /></div><button className="mt-4 bg-[#8fbc8f] py-4 text-[10px] uppercase tracking-[.17em]" onClick={() => alert('Thank you for your order!')}>Place order <Check className="ml-2 inline" size={14} /></button></form><aside className="h-fit bg-white p-5 ring-1 ring-[#dce3dc]"><h2 className="font-serif text-2xl">Your order</h2>{items.map((p) => <div key={p.id} className="mt-4 flex justify-between gap-4 border-b border-[#edf0ed] pb-3 text-xs"><span><strong className="block text-[9px] uppercase tracking-[.14em] text-[#8fbc8f]">{p.brand}</strong>{p.name} × {cart[p.id]}</span><span>${(p.price * (cart[p.id] ?? 0)).toFixed(2)}</span></div>)}<div className="mt-5 flex justify-between text-sm font-semibold"><span>Total</span><span>${subtotal.toFixed(2)}</span></div></aside></div></main> }
-function AuthView({ mode, go }: { mode: 'login' | 'register'; go: (v: 'home' | 'products' | 'login' | 'register' | 'cart' | 'payment' | 'detail') => void }) { const login = mode === 'login'; return <main className="flex min-h-[calc(100vh-72px)] items-center justify-center bg-[#d8f3dc] px-5 py-12"><div className="grid w-full max-w-[920px] overflow-hidden bg-white shadow-sm lg:grid-cols-2"><div className="hidden min-h-[560px] bg-[#182019] p-10 text-white lg:flex lg:flex-col lg:justify-end"><p className="text-[10px] uppercase tracking-[.25em] text-[#8fbc8f]">Welcome to LUMORA</p><h1 className="mt-4 font-serif text-6xl leading-[.9]">Wear your<br /><em className="text-[#8fbc8f]">story.</em></h1></div><div className="p-7 sm:p-12"><button onClick={() => go('home')} className="mb-16 font-serif text-2xl tracking-[.15em]">LUMORA</button><p className="text-[10px] uppercase tracking-[.22em] text-[#8fbc8f]">{login ? 'Welcome back' : 'Join the circle'}</p><h1 className="mt-3 font-serif text-4xl">{login ? 'Sign in.' : 'Create account.'}</h1><form className="mt-8 flex flex-col gap-5" onSubmit={(e) => { e.preventDefault(); go('products') }}><input required type="email" aria-label="Email" placeholder="Email address" className="border-b border-[#aeb8af] px-1 py-3 text-sm outline-none focus:border-[#8fbc8f]" /><input required type="password" aria-label="Password" placeholder="Password" className="border-b border-[#aeb8af] px-1 py-3 text-sm outline-none focus:border-[#8fbc8f]" />{!login && <input required type="password" aria-label="Confirm password" placeholder="Confirm password" className="border-b border-[#aeb8af] px-1 py-3 text-sm outline-none focus:border-[#8fbc8f]" />}<button className="mt-3 bg-[#182019] py-4 text-[10px] uppercase tracking-[.17em] text-white">{login ? 'Sign in' : 'Create account'}</button></form><p className="mt-7 text-center text-xs text-[#68736b]">{login ? "Don't have an account?" : 'Already a member?'} <button onClick={() => go(login ? 'register' : 'login')} className="font-semibold text-[#48734e] underline">{login ? 'Create one' : 'Sign in'}</button></p></div></div></main> }
+function PaymentView({ items, cart, subtotal, go }: { items: Product[]; cart: Cart; subtotal: number; go: (v: StoreView) => void }) {
+  const { user } = useAuth()
+  return (
+    <main className="mx-auto max-w-[1180px] px-5 py-10 lg:px-10 lg:py-14">
+      <PageHeading eyebrow="Almost yours" title="Checkout." />
+      <div className="grid gap-10 lg:grid-cols-[1fr_380px]">
+        <form className="flex flex-col gap-5" onSubmit={(e) => e.preventDefault()}>
+          <h2 className="font-serif text-2xl">Delivery details</h2>
+          <input required defaultValue={user ? `${user.firstName} ${user.lastName}`.trim() : ''} aria-label="Full name" placeholder="Full name" className="border-b border-[#aeb8af] bg-transparent px-1 py-4 text-sm outline-none focus:border-[#8fbc8f]" />
+          <input required defaultValue={user?.email || ''} type="email" aria-label="Email address" placeholder="Email address" className="border-b border-[#aeb8af] bg-transparent px-1 py-4 text-sm outline-none focus:border-[#8fbc8f]" />
+          <input required defaultValue={user?.address || ''} aria-label="Address" placeholder="Address" className="border-b border-[#aeb8af] bg-transparent px-1 py-4 text-sm outline-none focus:border-[#8fbc8f]" />
+          <div className="grid grid-cols-2 gap-5">
+            <input required aria-label="City" placeholder="City" className="border-b border-[#aeb8af] bg-transparent px-1 py-4 text-sm outline-none focus:border-[#8fbc8f]" />
+            <input required aria-label="Postal code" placeholder="Postal code" className="border-b border-[#aeb8af] bg-transparent px-1 py-4 text-sm outline-none focus:border-[#8fbc8f]" />
+          </div>
+          <button className="mt-4 bg-[#8fbc8f] py-4 text-[10px] uppercase tracking-[.17em]" onClick={() => alert('Thank you for your order!')}>Place order <Check className="ml-2 inline" size={14} /></button>
+        </form>
+        <aside className="h-fit bg-white p-5 ring-1 ring-[#dce3dc]">
+          <h2 className="font-serif text-2xl">Your order</h2>
+          {items.map((p) => (
+            <div key={p.id} className="mt-4 flex justify-between gap-4 border-b border-[#edf0ed] pb-3 text-xs">
+              <span><strong className="block text-[9px] uppercase tracking-[.14em] text-[#8fbc8f]">{p.brand}</strong>{p.name} × {cart[p.id]}</span>
+              <span>${(p.price * (cart[p.id] ?? 0)).toFixed(2)}</span>
+            </div>
+          ))}
+          <div className="mt-5 flex justify-between text-sm font-semibold">
+            <span>Total</span>
+            <span>${subtotal.toFixed(2)}</span>
+          </div>
+        </aside>
+      </div>
+    </main>
+  )
+}
+
+function AuthView({ mode, go }: { mode: 'login' | 'register'; go: (v: StoreView) => void }) {
+  const login = mode === 'login'
+  const { login: doLogin, register: doRegister, isAuthenticated } = useAuth()
+
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+
+  const [loading, setLoading] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  const handleFillDemo = () => {
+    setEmail('admin@example.com')
+    setPassword('Password123@')
+    setErrorMessage(null)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setErrorMessage(null)
+    setSuccessMessage(null)
+
+    if (login) {
+      if (!email.trim() || !password) {
+        setErrorMessage('Vui lòng nhập đầy đủ Email và Mật khẩu.')
+        return
+      }
+      setLoading(true)
+      const res = await doLogin({ email: email.trim(), password })
+      setLoading(false)
+      if (res.success) {
+        setSuccessMessage('Đăng nhập thành công! Đang chuyển hướng...')
+        setTimeout(() => go('products'), 600)
+      } else {
+        setErrorMessage(res.error || 'Đăng nhập không thành công. Vui lòng kiểm tra lại.')
+      }
+    } else {
+      if (!firstName.trim() || firstName.trim().length < 2) {
+        setErrorMessage('Họ phải chứa ít nhất 2 ký tự.')
+        return
+      }
+      if (!lastName.trim() || lastName.trim().length < 2) {
+        setErrorMessage('Tên phải chứa ít nhất 2 ký tự.')
+        return
+      }
+      if (!email.trim() || !email.includes('@')) {
+        setErrorMessage('Vui lòng nhập định dạng email hợp lệ.')
+        return
+      }
+      if (password.length < 6) {
+        setErrorMessage('Mật khẩu phải chứa ít nhất 6 ký tự.')
+        return
+      }
+      if (password !== confirmPassword) {
+        setErrorMessage('Mật khẩu xác nhận không khớp.')
+        return
+      }
+
+      setLoading(true)
+      const res = await doRegister({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        email: email.trim(),
+        password,
+      })
+      setLoading(false)
+      if (res.success) {
+        setSuccessMessage('Đăng ký tài khoản thành công! Đang đăng nhập...')
+        setTimeout(() => go('products'), 700)
+      } else {
+        setErrorMessage(res.error || 'Đăng ký không thành công. Email có thể đã tồn tại.')
+      }
+    }
+  }
+
+  return (
+    <main className="flex min-h-[calc(100vh-72px)] items-center justify-center bg-[#d8f3dc] px-5 py-12">
+      <div className="grid w-full max-w-[960px] overflow-hidden bg-white shadow-xl lg:grid-cols-2">
+        {/* Left Column: Visual Brand Editorial */}
+        <div className="relative hidden min-h-[580px] bg-[#182019] p-10 text-white lg:flex lg:flex-col lg:justify-between">
+          <div className="z-10">
+            <span className="font-serif text-2xl tracking-[.18em]">LUMORA</span>
+            <span className="block text-[8px] uppercase tracking-[.35em] text-[#8fbc8f] mt-1">Boutique</span>
+          </div>
+          <div className="z-10">
+            <p className="text-[10px] uppercase tracking-[.25em] text-[#8fbc8f]">Welcome to the circle</p>
+            <h1 className="mt-4 font-serif text-6xl leading-[.95]">
+              Wear your<br />
+              <em className="text-[#8fbc8f]">story.</em>
+            </h1>
+            <p className="mt-6 max-w-[280px] text-xs text-white/70 leading-relaxed">
+              Truy cập tủ đồ cá nhân, theo dõi trạng thái đơn hàng và trải nghiệm thời trang tinh tế mỗi ngày.
+            </p>
+          </div>
+          <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#8fbc8f_1px,transparent_1px)] [background-size:16px_16px]" />
+        </div>
+
+        {/* Right Column: Form */}
+        <div className="p-7 sm:p-12 flex flex-col justify-center">
+          <div className="flex items-center justify-between mb-8">
+            <button onClick={() => go('home')} className="font-serif text-2xl tracking-[.15em] text-[#182019]">
+              LUMORA
+            </button>
+            <button
+              onClick={() => go('home')}
+              className="text-[10px] uppercase tracking-[.15em] text-[#68736b] hover:text-[#182019] transition"
+            >
+              Về trang chủ →
+            </button>
+          </div>
+
+          <p className="text-[10px] uppercase tracking-[.22em] text-[#8fbc8f] font-semibold">
+            {login ? 'Welcome back' : 'Join the circle'}
+          </p>
+          <h1 className="mt-2 font-serif text-4xl text-[#182019]">
+            {login ? 'Sign in.' : 'Create account.'}
+          </h1>
+          <p className="mt-1 text-xs text-[#68736b]">
+            {login ? 'Nhập thông tin tài khoản của bạn để tiếp tục' : 'Tạo tài khoản mới để bắt đầu trải nghiệm'}
+          </p>
+
+          {/* Feedback alerts */}
+          {errorMessage && (
+            <div className="mt-5 flex items-start gap-2.5 rounded border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+              <AlertCircle size={16} className="shrink-0 mt-0.5 text-red-600" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="mt-5 flex items-start gap-2.5 rounded border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
+              <Check size={16} className="shrink-0 mt-0.5 text-emerald-600" />
+              <span>{successMessage}</span>
+            </div>
+          )}
+
+          <form className="mt-6 flex flex-col gap-4" onSubmit={handleSubmit}>
+            {!login && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-[#68736b] mb-1">Họ *</label>
+                  <input
+                    required
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="Nguyễn"
+                    className="w-full border-b border-[#aeb8af] pb-2 text-sm outline-none focus:border-[#8fbc8f] bg-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-wider text-[#68736b] mb-1">Tên *</label>
+                  <input
+                    required
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Văn An"
+                    className="w-full border-b border-[#aeb8af] pb-2 text-sm outline-none focus:border-[#8fbc8f] bg-transparent"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-[10px] uppercase tracking-wider text-[#68736b] mb-1">Email *</label>
+              <input
+                required
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="email@example.com"
+                className="w-full border-b border-[#aeb8af] pb-2 text-sm outline-none focus:border-[#8fbc8f] bg-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase tracking-wider text-[#68736b] mb-1">Mật khẩu *</label>
+              <input
+                required
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full border-b border-[#aeb8af] pb-2 text-sm outline-none focus:border-[#8fbc8f] bg-transparent"
+              />
+            </div>
+
+            {!login && (
+              <div>
+                <label className="block text-[10px] uppercase tracking-wider text-[#68736b] mb-1">Xác nhận mật khẩu *</label>
+                <input
+                  required
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full border-b border-[#aeb8af] pb-2 text-sm outline-none focus:border-[#8fbc8f] bg-transparent"
+                />
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="mt-4 flex items-center justify-center gap-2 bg-[#182019] py-3.5 text-[10px] uppercase tracking-[.18em] text-white transition hover:bg-[#283229] disabled:opacity-60"
+            >
+              {loading && <Loader2 size={14} className="animate-spin text-[#8fbc8f]" />}
+              <span>{loading ? 'Đang xử lý...' : (login ? 'Đăng nhập' : 'Tạo tài khoản')}</span>
+            </button>
+          </form>
+
+          {/* Quick Demo Login Helper */}
+          {login && (
+            <div className="mt-5 pt-4 border-t border-dashed border-[#dce3dc]">
+              <button
+                type="button"
+                onClick={handleFillDemo}
+                className="w-full flex items-center justify-center gap-2 rounded border border-[#8fbc8f]/60 bg-[#d8f3dc]/30 py-2.5 text-[10px] uppercase tracking-[.12em] text-[#244229] hover:bg-[#d8f3dc] transition"
+              >
+                <Sparkles size={13} className="text-[#48734e]" />
+                <span>Điền tài khoản test có sẵn</span>
+              </button>
+              <p className="mt-1.5 text-center text-[10px] text-[#68736b]">
+                (admin@example.com / Password123@)
+              </p>
+            </div>
+          )}
+
+          <p className="mt-6 text-center text-xs text-[#68736b]">
+            {login ? 'Chưa có tài khoản?' : 'Đã có tài khoản?'}
+            {' '}
+            <button
+              onClick={() => {
+                setErrorMessage(null)
+                setSuccessMessage(null)
+                go(login ? 'register' : 'login')
+              }}
+              className="font-semibold text-[#3b6340] underline hover:text-[#182019] transition ml-1"
+            >
+              {login ? 'Đăng ký ngay' : 'Đăng nhập'}
+            </button>
+          </p>
+        </div>
+      </div>
+    </main>
+  )
+}
