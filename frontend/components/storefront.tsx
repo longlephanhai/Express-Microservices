@@ -33,6 +33,8 @@ type ApiProduct = {
   quantity: number
   brandId?: string | null
   categoryId?: string | null
+  images?: string[] | string | null
+  image?: string | null
   description?: string | null
   content?: string | null
   rating?: number
@@ -46,37 +48,65 @@ type Product = {
   brand: string
   name: string
   category: string
+  categoryId?: string
   price: number
+  salePrice?: number
   image: string
   color: string
   description: string
 }
 
-// ─── Hard-coded images (kept exactly as original per requirements) ──────────
-const HARD_CODED_IMAGES: string[] = [
-  'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?auto=format&fit=crop&w=700&q=85',
-  'https://images.unsplash.com/photo-1566174053879-31528523f8ae?auto=format&fit=crop&w=700&q=85',
-  'https://images.unsplash.com/photo-1591369822096-ffd140ec948f?auto=format&fit=crop&w=700&q=85',
-  'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=700&q=85',
-  'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=700&q=85',
-  'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?auto=format&fit=crop&w=700&q=85',
-]
+export type CategoryItem = {
+  id: string
+  name: string
+  image?: string | null
+  description?: string | null
+}
 
 const FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?auto=format&fit=crop&w=700&q=85'
 
-/** Map API response to internal Product, keeping hard-coded images */
-function mapApiProduct(item: ApiProduct, index: number): Product {
+// Format currency display (VND if amount >= 1000, otherwise USD)
+function formatPrice(amount: number = 0): string {
+  if (amount >= 1000) {
+    return new Intl.NumberFormat('vi-VN', {
+      style: 'currency',
+      currency: 'VND',
+      maximumFractionDigits: 0,
+    }).format(amount)
+  }
+  return `$${amount.toFixed(2)}`
+}
+
+/** Map API response to internal Product with backend categories & brands */
+function mapApiProduct(
+  item: ApiProduct,
+  index: number,
+  categoryMap?: Record<string, string>,
+  brandMap?: Record<string, string>
+): Product {
+  // Prefer real images from backend database
+  let img = FALLBACK_IMAGE
+  if (Array.isArray(item.images) && item.images.length > 0 && typeof item.images[0] === 'string' && item.images[0].trim().length > 0) {
+    img = item.images[0]
+  } else if (typeof item.images === 'string' && item.images.startsWith('http')) {
+    img = item.images
+  } else if (item.image && typeof item.image === 'string' && item.image.startsWith('http')) {
+    img = item.image
+  }
+
+  const brandName = (item.brandId && brandMap?.[item.brandId]) ? brandMap[item.brandId] : 'LUMORA'
+  const categoryName = (item.categoryId && categoryMap?.[item.categoryId]) ? categoryMap[item.categoryId] : ''
+
   return {
     id: item.id,
     name: item.name,
-    // brandId is a UUID — do not display raw UUID as brand name
-    brand: 'LUMORA',
-    // categoryId is a UUID — do not display raw UUID as category name
-    category: '',
+    brand: brandName,
+    category: categoryName,
+    categoryId: item.categoryId ?? undefined,
     price: typeof item.price === 'string' ? parseFloat(item.price) : item.price,
-    // Images remain hard-coded per project requirements
-    image: HARD_CODED_IMAGES[index % HARD_CODED_IMAGES.length] ?? FALLBACK_IMAGE,
+    salePrice: item.salePrice ? (typeof item.salePrice === 'string' ? parseFloat(item.salePrice) : item.salePrice) : undefined,
+    image: img,
     color: item.colors ?? '',
     description: item.description ?? item.content ?? '',
   }
@@ -85,15 +115,16 @@ function mapApiProduct(item: ApiProduct, index: number): Product {
 // ─── API config ───────────────────────────────────────────────────────────────
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
 
-const categories = ['All', 'Clothing', 'Dresses', 'Shoes', 'Bags', 'Sets']
-
 type Cart = Record<string, number>
 
 export type StoreView = 'home' | 'products' | 'login' | 'register' | 'cart' | 'payment' | 'detail'
 
 export default function Storefront({ initialView = 'home' }: { initialView?: StoreView }) {
   const [view, setView] = useState<StoreView>(initialView)
-  const [activeCategory, setActiveCategory] = useState('All')
+  const [categories, setCategories] = useState<CategoryItem[]>([])
+  const [activeCategoryId, setActiveCategoryId] = useState<string>('all')
+  const [categoriesMap, setCategoriesMap] = useState<Record<string, string>>({})
+  const [brandsMap, setBrandsMap] = useState<Record<string, string>>({})
 
   const [selected, setSelected] = useState<Product | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -122,14 +153,42 @@ export default function Storefront({ initialView = 'home' }: { initialView?: Sto
     setLoading(true)
     setError(null)
 
-    fetch(`${API_BASE_URL}/v1/products?page=1&limit=20`, { signal: controller.signal })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`)
-        return res.json()
-      })
-      .then((json: { data: ApiProduct[] }) => {
-        const mapped = (json.data ?? []).map(mapApiProduct)
+    // Load categories, brands, and products in parallel from backend APIs
+    Promise.all([
+      fetch(`${API_BASE_URL}/v1/categories?page=1&limit=100`, { signal: controller.signal })
+        .then((res) => (res.ok ? res.json() : { data: [] }))
+        .catch(() => ({ data: [] })),
+      fetch(`${API_BASE_URL}/v1/brands?page=1&limit=100`, { signal: controller.signal })
+        .then((res) => (res.ok ? res.json() : { data: [] }))
+        .catch(() => ({ data: [] })),
+      fetch(`${API_BASE_URL}/v1/products?page=1&limit=50`, { signal: controller.signal })
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+          return res.json()
+        }),
+    ])
+      .then(([catJson, brandJson, prodJson]) => {
+        const catList: CategoryItem[] = catJson.data ?? []
+        const brandList: { id: string; name: string }[] = brandJson.data ?? []
+
+        const catMap: Record<string, string> = {}
+        catList.forEach((c) => {
+          catMap[c.id] = c.name
+        })
+
+        const bMap: Record<string, string> = {}
+        brandList.forEach((b) => {
+          bMap[b.id] = b.name
+        })
+
+        setCategories(catList)
+        setCategoriesMap(catMap)
+        setBrandsMap(bMap)
+
+        const rawProducts: ApiProduct[] = prodJson.data ?? []
+        const mapped = rawProducts.map((p, idx) => mapApiProduct(p, idx, catMap, bMap))
         setProducts(mapped)
+
         // Auto-select first product for detail view
         if (mapped.length > 0 && !selected) setSelected(mapped[0])
       })
@@ -142,7 +201,9 @@ export default function Storefront({ initialView = 'home' }: { initialView?: Sto
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const filtered = activeCategory === 'All' ? products : products.filter((p) => p.category === activeCategory)
+  const filtered = activeCategoryId === 'all'
+    ? products
+    : products.filter((p) => p.categoryId === activeCategoryId || p.category === activeCategoryId)
   const cartItems = products.filter((p) => cart[p.id])
   const subtotal = cartItems.reduce((sum, p) => sum + p.price * (cart[p.id] ?? 0), 0)
 
@@ -188,8 +249,27 @@ export default function Storefront({ initialView = 'home' }: { initialView?: Sto
         <button aria-label="Open menu" className="lg:hidden" onClick={() => setMenuOpen(!menuOpen)}><Menu /></button>
         <button onClick={() => go('home')} className="font-serif text-2xl tracking-[.16em]">LUMORA<span className="block border-t border-white/40 pt-0.5 text-center font-sans text-[7px] tracking-[.45em]">BOUTIQUE</span></button>
         <nav className={`${menuOpen ? 'absolute left-0 top-[72px] flex' : 'hidden'} w-full flex-col gap-5 bg-[#111311] px-6 py-6 text-[11px] uppercase tracking-[.18em] lg:static lg:flex lg:w-auto lg:flex-row lg:bg-transparent lg:p-0`}>
-          {['New In', 'Clothing', 'Dresses', 'Sets', 'Accessories'].map((label) => <button key={label} onClick={() => go('products')} className="text-left transition hover:text-[#8fbc8f]">{label}</button>)}
-          <button onClick={() => go('products')} className="text-left text-[#8fbc8f]">Sale</button>
+          <button
+            onClick={() => {
+              setActiveCategoryId('all')
+              go('products')
+            }}
+            className="text-left transition hover:text-[#8fbc8f]"
+          >
+            All Products
+          </button>
+          {categories.slice(0, 5).map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => {
+                setActiveCategoryId(cat.id)
+                go('products')
+              }}
+              className="text-left transition hover:text-[#8fbc8f]"
+            >
+              {cat.name}
+            </button>
+          ))}
         </nav>
         <div className="flex items-center gap-4">
           <button aria-label="Search" className="hidden sm:block"><Search size={19} strokeWidth={1.4} /></button>
@@ -257,8 +337,66 @@ export default function Storefront({ initialView = 'home' }: { initialView?: Sto
     </>}
 
 
-    {view === 'products' && <main className="mx-auto max-w-[1440px] px-5 py-10 lg:px-10 lg:py-14"><PageHeading eyebrow="The collection" title="Find your moment." /><div className="mb-9 flex gap-2 overflow-x-auto pb-2">{categories.map((c) => <button key={c} onClick={() => setActiveCategory(c)} className={`shrink-0 rounded-full border px-5 py-2 text-[10px] uppercase tracking-[.14em] transition ${activeCategory === c ? 'border-[#8fbc8f] bg-[#d8f3dc]' : 'border-[#d8ddd7] bg-white'}`}>{c}</button>)}</div><div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 lg:gap-5"><ProductsGrid items={filtered} /></div></main>}
-    {view === 'detail' && selected && <main className="mx-auto max-w-[1180px] px-5 py-8 lg:px-10 lg:py-14"><button onClick={() => go('products')} className="mb-8 flex items-center gap-2 text-[10px] uppercase tracking-[.15em]"><ArrowLeft size={15} /> Back to collection</button><div className="grid gap-8 lg:grid-cols-2"><img src={selected.image} alt={selected.name} className="aspect-[4/5] w-full object-cover" /><div className="flex flex-col justify-center"><p className="text-[10px] uppercase tracking-[.22em] text-[#8fbc8f]">{selected.brand}</p><p className="mt-2 text-[10px] uppercase tracking-[.16em] text-[#68736b]">{selected.category}</p><h1 className="mt-3 font-serif text-5xl">{selected.name}</h1><p className="mt-4 text-lg">${selected.price.toFixed(2)}</p><p className="mt-7 max-w-md text-sm leading-7 text-[#5e675f]">{selected.description}</p><div className="mt-8 border-y border-[#dbe4dc] py-5 text-xs"><span className="text-[#68736b]">Color</span><strong className="ml-10">{selected.color}</strong></div><button onClick={() => add(selected.id)} className="mt-7 flex w-full items-center justify-center gap-3 bg-[#8fbc8f] py-4 text-[11px] uppercase tracking-[.15em]">Add to bag <ShoppingBag size={16} /></button><button onClick={() => go('cart')} className="mt-3 w-full border border-[#1d241f] py-4 text-[11px] uppercase tracking-[.15em]">View bag ({count})</button></div></div></main>}
+    {view === 'products' && (
+      <main className="mx-auto max-w-[1440px] px-5 py-10 lg:px-10 lg:py-14">
+        <PageHeading eyebrow="The collection" title="Find your moment." />
+        <div className="mb-9 flex gap-2 overflow-x-auto pb-2">
+          <button
+            onClick={() => setActiveCategoryId('all')}
+            className={`shrink-0 rounded-full border px-5 py-2 text-[10px] uppercase tracking-[.14em] transition ${
+              activeCategoryId === 'all'
+                ? 'border-[#8fbc8f] bg-[#d8f3dc] font-semibold text-[#182019]'
+                : 'border-[#d8ddd7] bg-white hover:border-[#8fbc8f]'
+            }`}
+          >
+            All
+          </button>
+          {categories.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setActiveCategoryId(c.id)}
+              className={`shrink-0 rounded-full border px-5 py-2 text-[10px] uppercase tracking-[.14em] transition ${
+                activeCategoryId === c.id
+                  ? 'border-[#8fbc8f] bg-[#d8f3dc] font-semibold text-[#182019]'
+                  : 'border-[#d8ddd7] bg-white hover:border-[#8fbc8f]'
+              }`}
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 lg:gap-5">
+          <ProductsGrid items={filtered} />
+        </div>
+      </main>
+    )}
+    {view === 'detail' && selected && (
+      <main className="mx-auto max-w-[1180px] px-5 py-8 lg:px-10 lg:py-14">
+        <button onClick={() => go('products')} className="mb-8 flex items-center gap-2 text-[10px] uppercase tracking-[.15em]">
+          <ArrowLeft size={15} /> Back to collection
+        </button>
+        <div className="grid gap-8 lg:grid-cols-2">
+          <img src={selected.image} alt={selected.name} className="aspect-[4/5] w-full object-cover" />
+          <div className="flex flex-col justify-center">
+            <p className="text-[10px] uppercase tracking-[.22em] text-[#8fbc8f]">{selected.brand}</p>
+            <p className="mt-2 text-[10px] uppercase tracking-[.16em] text-[#68736b]">{selected.category}</p>
+            <h1 className="mt-3 font-serif text-5xl">{selected.name}</h1>
+            <p className="mt-4 text-lg font-medium">{formatPrice(selected.price)}</p>
+            <p className="mt-7 max-w-md text-sm leading-7 text-[#5e675f]">{selected.description}</p>
+            <div className="mt-8 border-y border-[#dbe4dc] py-5 text-xs">
+              <span className="text-[#68736b]">Color</span>
+              <strong className="ml-10">{selected.color}</strong>
+            </div>
+            <button onClick={() => add(selected.id)} className="mt-7 flex w-full items-center justify-center gap-3 bg-[#8fbc8f] py-4 text-[11px] uppercase tracking-[.15em]">
+              Add to bag <ShoppingBag size={16} />
+            </button>
+            <button onClick={() => go('cart')} className="mt-3 w-full border border-[#1d241f] py-4 text-[11px] uppercase tracking-[.15em]">
+              View bag ({count})
+            </button>
+          </div>
+        </div>
+      </main>
+    )}
     {view === 'cart' && (
       <CartView
         items={cartItems}
@@ -332,7 +470,7 @@ function ProductCard({ product, onOpen, onAdd, onFavorite }: { product: Product;
       <div className="px-1 py-3">
         <p className="text-[9px] uppercase tracking-[.18em] text-[#8fbc8f]">{product.brand}</p>
         <h3 className="mt-1 truncate text-[11px] uppercase tracking-[.05em]">{product.name}</h3>
-        <p className="mt-1 text-xs">${product.price.toFixed(2)}</p>
+        <p className="mt-1 text-xs">{formatPrice(product.price)}</p>
         <button onClick={onOpen} className="mt-3 hidden w-full border border-[#aeb8af] py-2 text-[9px] uppercase tracking-[.12em] sm:block">Shop now <ArrowRight className="ml-2 inline" size={12} /></button>
       </div>
     </article>
@@ -381,7 +519,7 @@ function CartView({
                       <span className="w-7 text-center text-xs">{cart[p.id]}</span>
                       <button aria-label="Increase quantity" onClick={() => change(p.id, 1)} className="p-2"><Plus size={13} /></button>
                     </div>
-                    <strong className="text-sm">${(p.price * (cart[p.id] ?? 0)).toFixed(2)}</strong>
+                    <strong className="text-sm">{formatPrice(p.price * (cart[p.id] ?? 0))}</strong>
                   </div>
                 </div>
               </div>
@@ -389,9 +527,9 @@ function CartView({
           </div>
           <aside className="h-fit bg-[#d8f3dc] p-6">
             <h2 className="font-serif text-2xl">Order summary</h2>
-            <div className="mt-6 flex justify-between border-b border-[#a8c9ad] pb-4 text-sm"><span>Subtotal</span><strong>${subtotal.toFixed(2)}</strong></div>
+            <div className="mt-6 flex justify-between border-b border-[#a8c9ad] pb-4 text-sm"><span>Subtotal</span><strong>{formatPrice(subtotal)}</strong></div>
             <div className="flex justify-between py-4 text-sm"><span>Shipping</span><span>Free</span></div>
-            <div className="flex justify-between border-t border-[#a8c9ad] pt-4"><strong>Total</strong><strong>${subtotal.toFixed(2)}</strong></div>
+            <div className="flex justify-between border-t border-[#a8c9ad] pt-4"><strong>Total</strong><strong>{formatPrice(subtotal)}</strong></div>
             <button
               onClick={onProceedToCheckout}
               className="mt-6 flex w-full items-center justify-center gap-2 bg-[#182019] py-4 text-[10px] uppercase tracking-[.17em] text-white hover:bg-[#2c382e] transition"
@@ -644,12 +782,12 @@ function PaymentView({ items, cart, subtotal, go, onRequireLogin }: { items: Pro
           {items.map((p) => (
             <div key={p.id} className="mt-4 flex justify-between gap-4 border-b border-[#edf0ed] pb-3 text-xs">
               <span><strong className="block text-[9px] uppercase tracking-[.14em] text-[#8fbc8f]">{p.brand}</strong>{p.name} × {cart[p.id]}</span>
-              <span>${(p.price * (cart[p.id] ?? 0)).toFixed(2)}</span>
+              <span>{formatPrice(p.price * (cart[p.id] ?? 0))}</span>
             </div>
           ))}
           <div className="mt-5 flex justify-between text-sm font-semibold">
             <span>Total</span>
-            <span>${subtotal.toFixed(2)}</span>
+            <span>{formatPrice(subtotal)}</span>
           </div>
         </aside>
       </div>
