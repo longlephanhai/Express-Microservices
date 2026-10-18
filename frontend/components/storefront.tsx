@@ -154,7 +154,7 @@ export default function Storefront({ initialView = 'home' }: { initialView?: Sto
           {['New In', 'Clothing', 'Dresses', 'Sets', 'Accessories'].map((label) => <button key={label} onClick={() => go('products')} className="text-left transition hover:text-[#8fbc8f]">{label}</button>)}
           <button onClick={() => go('products')} className="text-left text-[#8fbc8f]">Sale</button>
         </nav>
-        <div className="flex items-center gap-4"><button aria-label="Search" className="hidden sm:block"><Search size={19} strokeWidth={1.4} /></button><button aria-label="Account" onClick={() => go('login')}><UserRound size={19} strokeWidth={1.4} /></button><button aria-label="Shopping bag" className="relative" onClick={() => go('cart')}><ShoppingBag size={20} strokeWidth={1.4} /><span className="absolute -right-2 -top-2 flex size-4 items-center justify-center rounded-full bg-[#8fbc8f] text-[9px] text-[#111311]">{count}</span></button></div>
+        <div className="flex items-center gap-4"><button aria-label="Search" className="hidden sm:block"><Search size={19} strokeWidth={1.4} /></button><a aria-label="Account" href="/login"><UserRound size={19} strokeWidth={1.4} /></a><button aria-label="Shopping bag" className="relative" onClick={() => go('cart')}><ShoppingBag size={20} strokeWidth={1.4} /><span className="absolute -right-2 -top-2 flex size-4 items-center justify-center rounded-full bg-[#8fbc8f] text-[9px] text-[#111311]">{count}</span></button></div>
       </div>
     </header>
 
