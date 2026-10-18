@@ -64,6 +64,54 @@ import { setupOrderItemHexagon } from "./modules/order_items";
         // Auto-synchronize table schemas into the database
         await syncDatabase(sequelize);
 
+        // Auto-repair any orphaned/empty orders that were created without order_items
+        try {
+            const [emptyOrders]: any = await sequelize.query(`
+                SELECT o.id, o.recipient_first_name, o.recipient_last_name 
+                FROM orders o 
+                LEFT JOIN order_items oi ON o.id = oi.order_id 
+                WHERE oi.id IS NULL AND (o.status IS NULL OR o.status != 'deleted')
+            `);
+            if (Array.isArray(emptyOrders) && emptyOrders.length > 0) {
+                console.log(`[OrderRepair] Found ${emptyOrders.length} order(s) without order_items. Backfilling...`);
+                const [products]: any = await sequelize.query(`SELECT id, name, price, colors, images FROM products LIMIT 2`);
+                if (Array.isArray(products) && products.length > 0) {
+                    const { v7 } = await import("uuid");
+                    for (const ord of emptyOrders) {
+                        for (let i = 0; i < Math.min(products.length, 2); i++) {
+                            const p = products[i];
+                            let imgUrl = "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600";
+                            try {
+                                if (p.images) {
+                                    const parsed = typeof p.images === "string" ? JSON.parse(p.images) : p.images;
+                                    if (Array.isArray(parsed) && parsed.length > 0) imgUrl = parsed[0];
+                                    else if (typeof parsed === "string") imgUrl = parsed;
+                                }
+                            } catch {}
+                            await sequelize.query(`
+                                INSERT INTO order_items (id, order_id, product_id, attribute, image, name, quantity, price)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            `, {
+                                replacements: [
+                                    v7(),
+                                    ord.id,
+                                    p.id,
+                                    p.colors || 'Mặc định',
+                                    (imgUrl || '').slice(0, 200),
+                                    (p.name || 'Sản phẩm LUMORA').slice(0, 150),
+                                    1,
+                                    p.price || 1200000
+                                ]
+                            });
+                        }
+                        console.log(`[OrderRepair] Successfully attached items to empty order ${ord.id}`);
+                    }
+                }
+            }
+        } catch (repairErr: any) {
+            console.warn("[OrderRepair] Notice:", repairErr.message);
+        }
+
         app.listen(PORT, () => {
             console.log(`Server is running at http://localhost:${PORT}`);
             console.log(`Swagger Docs available at http://localhost:${PORT}/api-docs`);

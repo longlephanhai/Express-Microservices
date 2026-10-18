@@ -4,14 +4,23 @@ import {
   AlertCircle,
   ArrowLeft,
   ArrowRight,
+  Calendar,
   Check,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Eye,
   Heart,
   Loader2,
   Lock,
   LogOut,
+  MapPin,
   Menu,
   Minus,
+  Package,
+  PackageCheck,
   Plus,
+  RefreshCw,
   Search,
   ShoppingBag,
   Sparkles,
@@ -118,7 +127,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
 
 type Cart = Record<string, number>
 
-export type StoreView = 'home' | 'products' | 'login' | 'register' | 'cart' | 'payment' | 'detail'
+export type StoreView = 'home' | 'products' | 'login' | 'register' | 'cart' | 'payment' | 'detail' | 'orders'
 
 export default function Storefront({ initialView = 'home' }: { initialView?: StoreView }) {
   const [view, setView] = useState<StoreView>(initialView)
@@ -311,6 +320,15 @@ export default function Storefront({ initialView = 'home' }: { initialView?: Sto
               {cat.name}
             </button>
           ))}
+          {isAuthenticated && (
+            <button
+              onClick={() => go('orders')}
+              className="text-left transition hover:text-[#8fbc8f] lg:hidden flex items-center gap-2"
+            >
+              <PackageCheck size={14} className="text-[#8fbc8f]" />
+              <span>Đơn hàng của tôi</span>
+            </button>
+          )}
         </nav>
         <div className="flex items-center gap-4">
           <button aria-label="Search" className="hidden sm:block"><Search size={19} strokeWidth={1.4} /></button>
@@ -339,11 +357,21 @@ export default function Storefront({ initialView = 'home' }: { initialView?: Sto
                   </div>
                   <button
                     onClick={() => {
+                      setUserMenuOpen(false)
+                      go('orders')
+                    }}
+                    className="w-full flex items-center gap-2.5 rounded px-2 py-2 text-xs text-white hover:bg-white/10 text-left transition mb-1 cursor-pointer"
+                  >
+                    <PackageCheck size={14} className="text-[#8fbc8f]" />
+                    <span>Đơn hàng của tôi</span>
+                  </button>
+                  <button
+                    onClick={() => {
                       logout()
                       setUserMenuOpen(false)
                       go('home')
                     }}
-                    className="w-full flex items-center gap-2 rounded px-2 py-1.5 text-xs text-red-400 hover:bg-white/10 text-left transition"
+                    className="w-full flex items-center gap-2.5 rounded px-2 py-1.5 text-xs text-red-400 hover:bg-white/10 text-left transition cursor-pointer"
                   >
                     <LogOut size={13} />
                     <span>Đăng xuất</span>
@@ -478,6 +506,20 @@ export default function Storefront({ initialView = 'home' }: { initialView?: Sto
         onRequireLogin={() => {
           setRedirectAfterAuth('payment')
           go('login')
+        }}
+      />
+    )}
+    {view === 'orders' && (
+      <OrdersView
+        go={go}
+        products={products}
+        onRequireLogin={() => {
+          setRedirectAfterAuth('orders')
+          go('login')
+        }}
+        onReorder={(productId) => {
+          add(productId)
+          go('cart')
         }}
       />
     )}
@@ -795,7 +837,14 @@ function PaymentView({ items, cart, subtotal, go, onRequireLogin }: { items: Pro
           <p className="mt-4 text-[11px] text-[#68736b]">
             Đơn hàng đã được đồng bộ với hệ thống Quản trị. Chúng tôi sẽ liên hệ để xác nhận sớm nhất.
           </p>
-          <div className="mt-8 flex justify-center gap-3">
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <button
+              onClick={() => go('orders')}
+              className="flex items-center gap-2 bg-[#182019] px-6 py-3.5 text-[10px] uppercase tracking-[.18em] text-white hover:bg-[#2c382e] transition cursor-pointer"
+            >
+              <PackageCheck size={14} className="text-[#8fbc8f]" />
+              <span>Xem đơn hàng vừa đặt</span>
+            </button>
             <button
               onClick={() => go('cart')}
               className="border border-[#182019] px-6 py-3.5 text-[10px] uppercase tracking-[.18em] text-[#182019] hover:bg-black/5 transition cursor-pointer"
@@ -804,7 +853,7 @@ function PaymentView({ items, cart, subtotal, go, onRequireLogin }: { items: Pro
             </button>
             <button
               onClick={() => go('products')}
-              className="bg-[#182019] px-8 py-3.5 text-[10px] uppercase tracking-[.18em] text-white hover:bg-[#2c382e] transition cursor-pointer"
+              className="border border-[#182019] px-6 py-3.5 text-[10px] uppercase tracking-[.18em] text-[#182019] hover:bg-black/5 transition cursor-pointer"
             >
               Tiếp tục mua sắm
             </button>
@@ -871,19 +920,30 @@ function PaymentView({ items, cart, subtotal, go, onRequireLogin }: { items: Pro
       const orderId = json.data?.id
       if (orderId && items.length > 0) {
         for (const item of items) {
-          await fetch(`${API_BASE_URL}/v1/order-items`, {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              order_id: orderId,
-              product_id: item.id,
-              quantity: cart[item.id] || 1,
-              price: item.price,
-            }),
-          }).catch((err) => console.warn('[OrderItems] Warning:', err))
+          try {
+            const itemRes = await fetch(`${API_BASE_URL}/v1/order-items`, {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                order_id: orderId,
+                product_id: item.id,
+                quantity: Number(cart[item.id]) || 1,
+                price: Number(item.price) || 0,
+                name: (item.name || '').slice(0, 150),
+                image: (item.image || '').slice(0, 200),
+                attribute: (item.color && item.color.trim()) || 'default',
+              }),
+            })
+            if (!itemRes.ok) {
+              const errBody = await itemRes.text()
+              console.warn('[OrderItems] Warning saving item:', item.name, errBody)
+            }
+          } catch (itemErr) {
+            console.warn('[OrderItems] Network error saving item:', itemErr)
+          }
         }
       }
 
@@ -989,6 +1049,546 @@ function PaymentView({ items, cart, subtotal, go, onRequireLogin }: { items: Pro
           </div>
         </aside>
       </div>
+    </main>
+  )
+}
+
+type OrderStatusType =
+  | 'pending'
+  | 'confirmed'
+  | 'processing'
+  | 'shipping'
+  | 'delivered'
+  | 'completed'
+  | 'canceled'
+  | 'refunded'
+
+interface OrderRecord {
+  id: string
+  user_id: string
+  shipping_address: string
+  shipping_city?: string | null
+  shipping_method?: string | null
+  payment_method?: string | null
+  payment_status: string
+  recipient_first_name?: string | null
+  recipient_last_name?: string | null
+  recipient_phone?: string | null
+  recipient_email?: string | null
+  tracking_number?: string | null
+  status: OrderStatusType
+  total_price?: number
+  created_at?: string
+  updated_at?: string
+}
+
+interface OrderItemDetail {
+  id: string
+  order_id: string
+  product_id: string
+  name?: string | null
+  image?: string | null
+  attribute?: string | null
+  quantity: number
+  price: number | string
+}
+
+const ORDER_STATUS_CONFIG: Record<string, { label: string; badgeClass: string }> = {
+  pending: { label: 'Chờ xác nhận', badgeClass: 'bg-amber-50 text-amber-800 border-amber-200' },
+  confirmed: { label: 'Đã xác nhận', badgeClass: 'bg-sky-50 text-sky-800 border-sky-200' },
+  processing: { label: 'Đang xử lý', badgeClass: 'bg-indigo-50 text-indigo-800 border-indigo-200' },
+  shipping: { label: 'Đang giao hàng', badgeClass: 'bg-blue-50 text-blue-800 border-blue-200' },
+  delivered: { label: 'Đã nhận hàng', badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
+  completed: { label: 'Hoàn thành', badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
+  canceled: { label: 'Đã hủy', badgeClass: 'bg-rose-50 text-rose-800 border-rose-200' },
+  refunded: { label: 'Đã hoàn tiền', badgeClass: 'bg-purple-50 text-purple-800 border-purple-200' },
+}
+
+function formatOrderDate(dateStr?: string | Date): string {
+  if (!dateStr) return '—'
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return '—'
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(d)
+}
+
+function OrdersView({
+  go,
+  products,
+  onRequireLogin,
+  onReorder,
+}: {
+  go: (v: StoreView) => void
+  products: Product[]
+  onRequireLogin: () => void
+  onReorder: (productId: string) => void
+}) {
+  const { token, isAuthenticated } = useAuth()
+  const [orders, setOrders] = useState<OrderRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<string>('all')
+
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null)
+  const [orderItemsMap, setOrderItemsMap] = useState<Record<string, OrderItemDetail[]>>({})
+  const [loadingItemsMap, setLoadingItemsMap] = useState<Record<string, boolean>>({})
+
+  const productsMap = useMemo(() => {
+    const map: Record<string, Product> = {}
+    products.forEach((p) => {
+      map[p.id] = p
+    })
+    return map
+  }, [products])
+
+  const fetchOrders = async (clearCache = false) => {
+    if (!token) return
+    setLoading(true)
+    setError(null)
+    if (clearCache) {
+      setOrderItemsMap({})
+    }
+    try {
+      const res = await fetch(`${API_BASE_URL}/v1/orders`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+      }
+      const json = await res.json()
+      const list: OrderRecord[] = json.data || []
+      // Sắp xếp đơn mới nhất lên đầu
+      list.sort((a, b) => {
+        const tA = a.created_at ? new Date(a.created_at).getTime() : 0
+        const tB = b.created_at ? new Date(b.created_at).getTime() : 0
+        return tB - tA
+      })
+      setOrders(list)
+
+      if (list.length > 0) {
+        setExpandedOrderId(list[0].id)
+        loadOrderItems(list[0].id, clearCache)
+      }
+    } catch (err: any) {
+      setError(err.message || 'Không thể tải danh sách đơn hàng.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (isAuthenticated && token) {
+      fetchOrders()
+    } else {
+      setLoading(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, token])
+
+  const loadOrderItems = async (orderId: string, force = false) => {
+    if (!force && (orderItemsMap[orderId] || loadingItemsMap[orderId])) return
+
+    setLoadingItemsMap((prev) => ({ ...prev, [orderId]: true }))
+    try {
+      const res = await fetch(`${API_BASE_URL}/v1/order-items?order_id=${orderId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      })
+      if (res.ok) {
+        const json = await res.json()
+        setOrderItemsMap((prev) => ({ ...prev, [orderId]: json.data || [] }))
+      }
+    } catch (err) {
+      console.warn(`[OrdersView] Failed to load items for order ${orderId}:`, err)
+    } finally {
+      setLoadingItemsMap((prev) => ({ ...prev, [orderId]: false }))
+    }
+  }
+
+  const toggleExpand = (orderId: string) => {
+    if (expandedOrderId === orderId) {
+      setExpandedOrderId(null)
+    } else {
+      setExpandedOrderId(orderId)
+      loadOrderItems(orderId)
+    }
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <main className="mx-auto max-w-[700px] px-5 py-16 text-center">
+        <div className="rounded-2xl border border-[#dce3dc] bg-white p-10 shadow-sm">
+          <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-full bg-[#d8f3dc] text-[#182019]">
+            <Lock size={26} className="text-[#2b4c30]" />
+          </div>
+          <p className="text-[10px] uppercase tracking-[.25em] text-[#8fbc8f] font-semibold">Tra cứu đơn hàng</p>
+          <h1 className="mt-2 font-serif text-3xl md:text-4xl text-[#182019]">Yêu cầu đăng nhập</h1>
+          <p className="mt-4 text-xs text-[#5e675f] leading-relaxed max-w-md mx-auto">
+            Vui lòng đăng nhập tài khoản của bạn để xem và theo dõi lộ trình các đơn hàng đã đặt.
+          </p>
+          <div className="mt-8 flex justify-center">
+            <button
+              onClick={onRequireLogin}
+              className="flex items-center gap-2 bg-[#182019] px-7 py-3.5 text-[10px] uppercase tracking-[.18em] text-white hover:bg-[#2c382e] transition cursor-pointer"
+            >
+              <span>Đăng nhập ngay</span>
+              <ArrowRight size={14} />
+            </button>
+          </div>
+        </div>
+      </main>
+    )
+  }
+
+  const filteredOrders = orders.filter((o) => {
+    if (activeTab === 'all') return true
+    if (activeTab === 'completed') return o.status === 'completed' || o.status === 'delivered'
+    if (activeTab === 'processing') return o.status === 'processing' || o.status === 'confirmed'
+    return o.status === activeTab
+  })
+
+  const TABS = [
+    { id: 'all', label: 'Tất cả', count: orders.length },
+    { id: 'pending', label: 'Chờ xác nhận', count: orders.filter((o) => o.status === 'pending').length },
+    { id: 'processing', label: 'Đang chuẩn bị', count: orders.filter((o) => o.status === 'processing' || o.status === 'confirmed').length },
+    { id: 'shipping', label: 'Đang giao', count: orders.filter((o) => o.status === 'shipping').length },
+    { id: 'completed', label: 'Hoàn thành', count: orders.filter((o) => o.status === 'completed' || o.status === 'delivered').length },
+    { id: 'canceled', label: 'Đã hủy', count: orders.filter((o) => o.status === 'canceled').length },
+  ]
+
+  return (
+    <main className="mx-auto max-w-[1180px] px-5 py-10 lg:px-10 lg:py-14">
+      <div className="mb-6 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => go('products')}
+          className="inline-flex items-center gap-1.5 text-xs text-[#68736b] hover:text-[#182019] transition cursor-pointer"
+        >
+          <ArrowLeft size={14} />
+          <span>Tiếp tục mua sắm</span>
+        </button>
+        <button
+          onClick={() => fetchOrders(true)}
+          className="flex items-center gap-1.5 text-xs text-[#48634c] hover:text-[#182019] transition cursor-pointer"
+          title="Tải lại đơn hàng"
+        >
+          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
+          <span>Làm mới</span>
+        </button>
+      </div>
+
+      <PageHeading eyebrow="Account history" title="My orders." />
+
+      {/* Tabs */}
+      <div className="mb-8 flex gap-2 overflow-x-auto pb-2 border-b border-[#e1e7e1]">
+        {TABS.map((tab) => {
+          const isActive = activeTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`shrink-0 rounded-full px-4 py-2 text-[11px] uppercase tracking-[.12em] transition cursor-pointer flex items-center gap-2 ${
+                isActive
+                  ? 'bg-[#182019] text-white font-medium shadow-xs'
+                  : 'bg-white text-[#68736b] border border-[#dce3dc] hover:border-[#8fbc8f] hover:text-[#182019]'
+              }`}
+            >
+              <span>{tab.label}</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                  isActive ? 'bg-white/20 text-white' : 'bg-[#eef2ed] text-[#48544a]'
+                }`}
+              >
+                {tab.count}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Loading state */}
+      {loading && (
+        <div className="flex flex-col items-center justify-center py-24 text-[#68736b]">
+          <Loader2 size={32} className="animate-spin text-[#8fbc8f] mb-4" />
+          <p className="text-xs uppercase tracking-[.16em]">Đang tải danh sách đơn hàng...</p>
+        </div>
+      )}
+
+      {/* Error state */}
+      {!loading && error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-8 text-center">
+          <AlertCircle size={28} className="mx-auto text-red-600 mb-3" />
+          <p className="font-serif text-xl text-red-900">Không thể tải đơn hàng</p>
+          <p className="mt-1 text-xs text-red-700">{error}</p>
+          <button
+            onClick={() => fetchOrders()}
+            className="mt-5 border border-red-800 bg-white px-6 py-2.5 text-[10px] uppercase tracking-[.16em] text-red-800 hover:bg-red-50 transition cursor-pointer"
+          >
+            Thử lại
+          </button>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {!loading && !error && filteredOrders.length === 0 && (
+        <div className="rounded-xl border border-dashed border-[#dce3dc] bg-white p-12 text-center">
+          <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-[#d8f3dc]/60 text-[#35593b]">
+            <Package size={28} />
+          </div>
+          <h2 className="font-serif text-2xl text-[#182019]">
+            {orders.length === 0 ? 'Bạn chưa có đơn hàng nào' : 'Không có đơn hàng nào trong mục này'}
+          </h2>
+          <p className="mt-2 text-xs text-[#68736b] max-w-md mx-auto">
+            {orders.length === 0
+              ? 'Khi bạn đặt hàng, toàn bộ thông tin đơn hàng và lộ trình giao hàng sẽ hiển thị tại đây.'
+              : 'Hãy thử chọn mục trạng thái khác hoặc quay lại kiểm tra sau.'}
+          </p>
+          <div className="mt-6 flex justify-center">
+            <button
+              onClick={() => go('products')}
+              className="bg-[#182019] px-7 py-3.5 text-[10px] uppercase tracking-[.18em] text-white hover:bg-[#2c382e] transition cursor-pointer"
+            >
+              Khám phá bộ sưu tập ngay
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Orders list */}
+      {!loading && !error && filteredOrders.length > 0 && (
+        <div className="flex flex-col gap-5">
+          {filteredOrders.map((order) => {
+            const isExpanded = expandedOrderId === order.id
+            const items = orderItemsMap[order.id] || []
+            const isLoadingItems = loadingItemsMap[order.id]
+            const statusConfig = ORDER_STATUS_CONFIG[order.status] || {
+              label: order.status,
+              badgeClass: 'bg-gray-50 text-gray-700 border-gray-200',
+            }
+
+            const calculatedTotal = items.reduce(
+              (sum, it) => sum + Number(it.price) * it.quantity,
+              0
+            )
+
+            const recipientName = [order.recipient_first_name, order.recipient_last_name]
+              .filter(Boolean)
+              .join(' ') || 'Quý khách'
+
+            return (
+              <div
+                key={order.id}
+                className="overflow-hidden rounded-md border border-[#dce3dc] bg-white shadow-xs transition hover:border-[#b8c7b8]"
+              >
+                {/* Order header */}
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#edf0ed] bg-[#fbfdfb] p-4 sm:p-5">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="font-mono text-sm font-semibold tracking-wider text-[#182019]">
+                      #{order.id.slice(0, 8).toUpperCase()}
+                    </span>
+                    <span className="text-[11px] text-[#68736b] flex items-center gap-1">
+                      <Calendar size={13} className="text-[#8fbc8f]" />
+                      {formatOrderDate(order.created_at)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-medium uppercase tracking-[.08em] ${statusConfig.badgeClass}`}
+                    >
+                      <span className="size-1.5 rounded-full bg-current" />
+                      {statusConfig.label}
+                    </span>
+
+                    <button
+                      onClick={() => toggleExpand(order.id)}
+                      className="flex items-center gap-1 border border-[#dce3dc] bg-white px-3 py-1.5 text-xs text-[#182019] hover:bg-[#f2f5f2] transition rounded-xs cursor-pointer"
+                    >
+                      <span>{isExpanded ? 'Thu gọn' : 'Chi tiết'}</span>
+                      {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Compact preview when collapsed */}
+                {!isExpanded && (
+                  <div className="flex flex-wrap items-center justify-between gap-4 p-4 text-xs">
+                    <div className="flex items-center gap-2 text-[#68736b]">
+                      <MapPin size={14} className="shrink-0 text-[#8fbc8f]" />
+                      <span className="line-clamp-1 max-w-md">
+                        {order.shipping_address}{order.shipping_city ? `, ${order.shipping_city}` : ''}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => toggleExpand(order.id)}
+                      className="text-[11px] font-medium text-[#2d5232] hover:underline cursor-pointer flex items-center gap-1"
+                    >
+                      <Eye size={13} />
+                      <span>Xem sản phẩm trong đơn</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Expanded details */}
+                {isExpanded && (
+                  <div className="p-4 sm:p-6 bg-white animate-in fade-in duration-200">
+                    <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+                      {/* Products in this order */}
+                      <div>
+                        <h3 className="font-serif text-lg text-[#182019] mb-3">Sản phẩm trong đơn</h3>
+
+                        {isLoadingItems && (
+                          <div className="flex items-center gap-2 py-6 text-xs text-[#68736b]">
+                            <Loader2 size={16} className="animate-spin text-[#8fbc8f]" />
+                            <span>Đang tải danh sách sản phẩm...</span>
+                          </div>
+                        )}
+
+                        {!isLoadingItems && items.length === 0 && (
+                          <div className="rounded border border-dashed border-[#dce3dc] bg-[#fafbfa] p-4 text-xs text-[#68736b]">
+                            <p className="italic">Chưa có thông tin danh sách sản phẩm cho đơn hàng này.</p>
+                            <button
+                              type="button"
+                              onClick={() => loadOrderItems(order.id, true)}
+                              className="mt-2 inline-flex items-center gap-1 font-medium text-[#2d5232] underline hover:text-[#182019] cursor-pointer not-italic"
+                            >
+                              <RefreshCw size={12} />
+                              <span>Thử tải lại sản phẩm</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {!isLoadingItems && items.length > 0 && (
+                          <div className="divide-y divide-[#edf0ed] border-y border-[#edf0ed]">
+                            {items.map((it) => {
+                              const prod = productsMap[it.product_id]
+                              const itemImg = it.image || prod?.image || FALLBACK_IMAGE
+                              const itemName = it.name || prod?.name || 'Sản phẩm LUMORA'
+                              const itemBrand = prod?.brand || 'LUMORA'
+                              const itemPrice = Number(it.price) || prod?.price || 0
+                              const itemAttr = it.attribute && it.attribute !== 'default' ? it.attribute : prod?.color
+
+                              return (
+                                <div key={it.id} className="flex items-center justify-between gap-4 py-3.5">
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <img
+                                      src={itemImg}
+                                      alt={itemName}
+                                      className="size-16 object-cover rounded-xs border border-[#dce3dc] shrink-0"
+                                    />
+                                    <div className="min-w-0">
+                                      <p className="text-[9px] uppercase tracking-[.15em] text-[#8fbc8f] font-semibold">
+                                        {itemBrand}
+                                      </p>
+                                      <h4 className="truncate text-xs font-medium text-[#182019]">
+                                        {itemName}
+                                      </h4>
+                                      {itemAttr && (
+                                        <p className="text-[11px] text-[#68736b]">{itemAttr}</p>
+                                      )}
+                                      <p className="text-[11px] text-[#68736b] mt-0.5">
+                                        Số lượng: <strong className="text-[#182019]">{it.quantity}</strong> × {formatPrice(itemPrice)}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                                    <strong className="text-xs text-[#182019]">
+                                      {formatPrice(itemPrice * it.quantity)}
+                                    </strong>
+                                    <button
+                                      type="button"
+                                      onClick={() => onReorder(it.product_id)}
+                                      className="text-[10px] uppercase tracking-wider text-[#35593b] hover:underline cursor-pointer"
+                                    >
+                                      Mua lại
+                                    </button>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Recipient and delivery summary */}
+                      <div className="rounded-sm bg-[#f8faf8] border border-[#dce3dc] p-4 text-xs flex flex-col justify-between">
+                        <div>
+                          <h4 className="font-serif text-base text-[#182019] mb-3 pb-2 border-b border-[#dce3dc]">
+                            Thông tin nhận hàng
+                          </h4>
+                          <div className="space-y-2 text-[#465248]">
+                            <div>
+                              <span className="text-[10px] uppercase tracking-wider text-[#68736b] block">Người nhận</span>
+                              <strong className="text-[#182019]">{recipientName}</strong>
+                            </div>
+                            {order.recipient_email && (
+                              <div>
+                                <span className="text-[10px] uppercase tracking-wider text-[#68736b] block">Email</span>
+                                <span>{order.recipient_email}</span>
+                              </div>
+                            )}
+                            {order.recipient_phone && (
+                              <div>
+                                <span className="text-[10px] uppercase tracking-wider text-[#68736b] block">Điện thoại</span>
+                                <span>{order.recipient_phone}</span>
+                              </div>
+                            )}
+                            <div>
+                              <span className="text-[10px] uppercase tracking-wider text-[#68736b] block">Địa chỉ</span>
+                              <span>
+                                {order.shipping_address}{order.shipping_city ? `, ${order.shipping_city}` : ''}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-[10px] uppercase tracking-wider text-[#68736b] block">Thanh toán</span>
+                              <span className="capitalize">
+                                {order.payment_method === 'cod' || !order.payment_method
+                                  ? 'Thanh toán khi nhận hàng (COD)'
+                                  : order.payment_method}
+                              </span>
+                            </div>
+                            {order.tracking_number && (
+                              <div>
+                                <span className="text-[10px] uppercase tracking-wider text-[#68736b] block">Mã vận đơn</span>
+                                <span className="font-mono text-[#2b4c30]">{order.tracking_number}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Order total amount */}
+                        <div className="mt-5 pt-3 border-t border-[#dce3dc]">
+                          <div className="flex justify-between text-xs text-[#68736b] mb-1">
+                            <span>Vận chuyển:</span>
+                            <span className="text-[#2b4c30] font-medium">Miễn phí</span>
+                          </div>
+                          <div className="flex justify-between items-baseline text-sm">
+                            <span className="font-semibold text-[#182019]">Tổng thanh toán:</span>
+                            <strong className="font-serif text-lg text-[#182019]">
+                              {formatPrice(calculatedTotal || order.total_price || 0)}
+                            </strong>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
     </main>
   )
 }
