@@ -28,7 +28,10 @@ type Product = {
   brand: string
   name: string
   category: string
+  categoryId: string
   price: number
+  salePrice?: number
+  quantity?: number
   image: string
   color: string
   description: string
@@ -47,71 +50,244 @@ const HARD_CODED_IMAGES: string[] = [
 const FALLBACK_IMAGE =
   'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?auto=format&fit=crop&w=700&q=85'
 
-/** Map API response to internal Product, keeping hard-coded images */
-function mapApiProduct(item: ApiProduct, index: number): Product {
+/**
+ * Hàm sinh ảnh ổn định duy nhất theo id sản phẩm.
+ * Đảm bảo cùng một product.id luôn ánh xạ đến cùng một ảnh cố định trong mảng HARD_CODED_IMAGES,
+ * không phụ thuộc vào vị trí hiển thị, trang hiện tại, danh mục lọc hay chế độ xem.
+ */
+function getProductImage(id: string): string {
+  if (!id) return FALLBACK_IMAGE
+  let hash = 0
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash * 31 + id.charCodeAt(i)) >>> 0
+  }
+  return HARD_CODED_IMAGES[hash % HARD_CODED_IMAGES.length] ?? FALLBACK_IMAGE
+}
+
+// ─── Cấu hình Danh mục chuẩn theo yêu cầu Giai đoạn 2 ────────────────────────
+const CATEGORIES = ['ALL', 'CLOTHING', 'DRESSES', 'SHOES', 'BAG', 'SETS', 'ACCESSORIES'] as const
+
+/** Ánh xạ danh mục giao diện sang danh sách category_id thực tế trong CSDL */
+const CATEGORY_MAP: Record<string, string[]> = {
+  CLOTHING: ['cat-001', 'cat-002', 'cat-003', 'cat-004', 'cat-005'],
+  DRESSES: ['cat-006', 'cat-007'],
+  SHOES: ['cat-008'],
+  BAG: ['cat-009'],
+  SETS: [], // Chưa có danh mục bộ đồ riêng, hiển thị trạng thái rỗng
+  ACCESSORIES: ['cat-010'],
+}
+
+/** Tên hiển thị chi tiết của từng category_id thực tế */
+const CATEGORY_NAMES: Record<string, string> = {
+  'cat-001': 'Áo thun',
+  'cat-002': 'Áo sơ mi',
+  'cat-003': 'Áo khoác',
+  'cat-004': 'Quần jeans',
+  'cat-005': 'Quần dài',
+  'cat-006': 'Váy',
+  'cat-007': 'Đầm',
+  'cat-008': 'Giày',
+  'cat-009': 'Túi xách',
+  'cat-010': 'Phụ kiện',
+}
+
+/** 
+ * Chuyển đổi dữ liệu sản phẩm từ API backend sang cấu trúc Product của giao diện LUMORA.
+ * Giữ nguyên ảnh mẫu hard-coded theo yêu cầu thiết kế giao diện (ánh xạ đồng bộ 100% theo product.id).
+ * Giữ nguyên category_id thực tế để phục vụ lọc danh mục.
+ * Xử lý an toàn giá trị price kiểu Decimal/string từ Sequelize MySQL.
+ */
+function mapApiProduct(item: ApiProduct): Product {
+  const rawPrice = item.price
+  const parsedPrice = typeof rawPrice === 'string' ? parseFloat(rawPrice) : Number(rawPrice)
+  const rawSalePrice = item.salePrice
+  const parsedSalePrice = typeof rawSalePrice === 'string' ? parseFloat(rawSalePrice) : Number(rawSalePrice)
+
+  const catId = item.categoryId ?? ''
+  const catLabel = CATEGORY_NAMES[catId] ?? (catId ? `Danh mục ${catId}` : 'Collection Piece')
+
   return {
     id: item.id,
-    name: item.name,
-    // brandId is a UUID — do not display raw UUID as brand name
+    name: item.name || 'Untitled Piece',
     brand: 'LUMORA',
-    // categoryId is a UUID — do not display raw UUID as category name
-    category: '',
-    price: typeof item.price === 'string' ? parseFloat(item.price) : item.price,
-    // Images remain hard-coded per project requirements
-    image: HARD_CODED_IMAGES[index % HARD_CODED_IMAGES.length] ?? FALLBACK_IMAGE,
+    category: catLabel,
+    categoryId: catId,
+    price: !isNaN(parsedPrice) && parsedPrice >= 0 ? parsedPrice : 0,
+    salePrice: !isNaN(parsedSalePrice) && parsedSalePrice >= 0 ? parsedSalePrice : undefined,
+    quantity: typeof item.quantity === 'number' ? item.quantity : 0,
+    image: getProductImage(item.id),
     color: item.colors ?? '',
     description: item.description ?? item.content ?? '',
   }
 }
 
 // ─── API config ───────────────────────────────────────────────────────────────
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
-
-const categories = ['All', 'Clothing', 'Dresses', 'Shoes', 'Bags', 'Sets']
+// Đọc biến môi trường NEXT_PUBLIC_API_URL, mặc định trỏ về API Gateway cổng 3000 khi chạy local
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
 
 type Cart = Record<string, number>
 
 export type StoreView = 'home' | 'products' | 'login' | 'register' | 'cart' | 'payment' | 'detail'
 
-export default function Storefront({ initialView = 'home' }: { initialView?: StoreView }) {
+export default function Storefront({
+  initialView = 'home',
+  initialProductId,
+}: {
+  initialView?: StoreView
+  initialProductId?: string
+}) {
   const [view, setView] = useState<StoreView>(initialView)
-  const [activeCategory, setActiveCategory] = useState('All')
+  const [activeCategory, setActiveCategory] = useState<string>('ALL')
+  const [currentPage, setCurrentPage] = useState<number>(1)
+  const ITEMS_PER_PAGE = 20
 
   const [cart, setCart] = useState<Cart>({})
+  const [selectedId, setSelectedId] = useState<string | null>(initialProductId || null)
   const [selected, setSelected] = useState<Product | null>(null)
+  const [detailLoading, setDetailLoading] = useState(false)
+  const [detailError, setDetailError] = useState<string | null>(null)
+  const [detailRetryKey, setDetailRetryKey] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
 
-  // ── API state ──────────────────────────────────────────────────────────────
+  // ── State quản lý gọi API Product từ Backend ────────────────────────────────
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [retryKey, setRetryKey] = useState(0)
 
+  // Hàm kích hoạt thử lại (retry) khi gặp sự cố kết nối danh sách sản phẩm
+  const handleRetry = () => {
+    setRetryKey((prev) => prev + 1)
+  }
+
+  // Hook nạp toàn bộ danh sách sản phẩm qua các trang API tuần tự
   useEffect(() => {
     const controller = new AbortController()
-    setLoading(true)
-    setError(null)
+    let isCancelled = false
 
-    fetch(`${API_BASE_URL}/v1/products?page=1&limit=20`, { signal: controller.signal })
+    const loadAllProducts = async () => {
+      setLoading(true)
+      setError(null)
+
+      try {
+        const PAGE_LIMIT = 20
+        // Bước 1: Nạp trang đầu tiên để lấy dữ liệu ban đầu và metadata phân trang
+        const res1 = await fetch(`${API_BASE_URL}/v1/products?page=1&limit=${PAGE_LIMIT}`, {
+          signal: controller.signal,
+        })
+        if (!res1.ok) {
+          throw new Error(`Lỗi kết nối máy chủ (${res1.status}: ${res1.statusText})`)
+        }
+        const json1 = await res1.json()
+        const rawList1: ApiProduct[] = Array.isArray(json1?.data) ? json1.data : []
+        const total = typeof json1?.paging?.total === 'number' ? json1.paging.total : rawList1.length
+        const totalPages = Math.max(1, Math.ceil(total / PAGE_LIMIT))
+
+        // Dùng Map để lưu trữ và khử trùng lặp sản phẩm theo id
+        const productMap = new Map<string, ApiProduct>()
+        for (const item of rawList1) {
+          if (item?.id) productMap.set(item.id, item)
+        }
+
+        // Bước 2: Tải tuần tự các trang tiếp theo (nếu tổng sản phẩm > PAGE_LIMIT)
+        for (let p = 2; p <= totalPages; p++) {
+          if (controller.signal.aborted || isCancelled) return
+          const resPage = await fetch(`${API_BASE_URL}/v1/products?page=${p}&limit=${PAGE_LIMIT}`, {
+            signal: controller.signal,
+          })
+          if (!resPage.ok) {
+            throw new Error(`Lỗi kết nối khi tải trang ${p} (${resPage.status}: ${resPage.statusText})`)
+          }
+          const jsonPage = await resPage.json()
+          const pageItems: ApiProduct[] = Array.isArray(jsonPage?.data) ? jsonPage.data : []
+          for (const item of pageItems) {
+            if (item?.id) productMap.set(item.id, item)
+          }
+        }
+
+        if (controller.signal.aborted || isCancelled) return
+
+        const allRaw = Array.from(productMap.values())
+        const mapped = allRaw.map((item) => mapApiProduct(item))
+        setProducts(mapped)
+      } catch (err: unknown) {
+        if (!isCancelled && (err as Error).name !== 'AbortError') {
+          console.error('[Storefront] Lỗi khi tải danh sách sản phẩm:', err)
+          setError((err as Error).message || 'Không thể kết nối đến máy chủ API.')
+        }
+      } finally {
+        if (!isCancelled && !controller.signal.aborted) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadAllProducts()
+
+    return () => {
+      isCancelled = true
+      controller.abort()
+    }
+  }, [retryKey])
+
+  // Hook nạp thông tin chi tiết sản phẩm thật từ API GET /v1/products/:id
+  useEffect(() => {
+    if (!selectedId) return
+
+    const controller = new AbortController()
+    setDetailLoading(true)
+    setDetailError(null)
+
+    fetch(`${API_BASE_URL}/v1/products/${selectedId}`, { signal: controller.signal })
       .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+        if (res.status === 404) {
+          throw new Error('Sản phẩm không tồn tại hoặc đã ngừng kinh doanh.')
+        }
+        if (!res.ok) {
+          throw new Error(`Lỗi máy chủ (${res.status}: ${res.statusText})`)
+        }
         return res.json()
       })
-      .then((json: { data: ApiProduct[] }) => {
-        const mapped = (json.data ?? []).map(mapApiProduct)
-        setProducts(mapped)
-        // Auto-select first product for detail view
-        if (mapped.length > 0 && !selected) setSelected(mapped[0])
+      .then((json: { data?: ApiProduct }) => {
+        if (!json?.data || !json.data.id) {
+          throw new Error('Dữ liệu sản phẩm trả về không hợp lệ.')
+        }
+        setSelected(mapApiProduct(json.data))
       })
       .catch((err: Error) => {
-        if (err.name !== 'AbortError') setError(err.message)
+        if (err.name !== 'AbortError') {
+          console.error('[Storefront] Lỗi khi tải chi tiết sản phẩm:', err)
+          setDetailError(err.message || 'Không thể tải chi tiết sản phẩm.')
+        }
       })
-      .finally(() => setLoading(false))
+      .finally(() => setDetailLoading(false))
 
     return () => controller.abort()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [selectedId, detailRetryKey])
 
-  const filtered = activeCategory === 'All' ? products : products.filter((p) => p.category === activeCategory)
+  // Hàm chuyển đổi danh mục: đặt lại trang hiện tại về 1
+  const handleSelectCategory = (cat: string) => {
+    setActiveCategory(cat)
+    setCurrentPage(1)
+  }
+
+  // Lọc sản phẩm theo danh mục trên toàn bộ tập dữ liệu đã tải
+  const filtered = activeCategory === 'ALL'
+    ? products
+    : products.filter((p) => {
+        const targetIds = CATEGORY_MAP[activeCategory]
+        return targetIds ? targetIds.includes(p.categoryId) : false
+      })
+
+  // Tính số trang dựa trên kết quả lọc của danh mục hiện tại
+  const totalCategoryPages = Math.max(1, Math.ceil(filtered.length / ITEMS_PER_PAGE))
+
+  // Cắt mảng sản phẩm cho trang giao diện hiện tại (tối đa 20 sản phẩm/trang)
+  const paginatedProducts = filtered.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  )
+
   const cartItems = products.filter((p) => cart[p.id])
   const count = Object.values(cart).reduce((a, b) => a + b, 0)
   const subtotal = cartItems.reduce((sum, p) => sum + p.price * (cart[p.id] ?? 0), 0)
@@ -120,28 +296,52 @@ export default function Storefront({ initialView = 'home' }: { initialView?: Sto
   const add = (id: string) => setCart((c) => ({ ...c, [id]: (c[id] || 0) + 1 }))
   const change = (id: string, delta: number) => setCart((c) => { const next = Math.max(0, (c[id] || 0) + delta); const copy = { ...c }; if (next) copy[id] = next; else delete copy[id]; return copy })
 
-  // ── Loading / Error states ─────────────────────────────────────────────────
+  // Hàm mở trang chi tiết sản phẩm
+  const openDetail = (p: Product) => {
+    setSelectedId(p.id)
+    setSelected(p)
+    go('detail')
+  }
+
+  // ── Component hiển thị lưới sản phẩm và các trạng thái Loading / Error / Empty ──
   const ProductsGrid = ({ items }: { items: Product[] }) => {
+    // 1. Trạng thái đang tải dữ liệu (Loading)
     if (loading) return (
       <div className="col-span-full flex flex-col items-center py-20 text-[#68736b]">
         <div className="mb-4 size-8 animate-spin rounded-full border-2 border-[#8fbc8f] border-t-transparent" />
         <p className="text-[11px] uppercase tracking-[.15em]">Loading collection…</p>
       </div>
     )
+
+    // 2. Trạng thái lỗi kết nối hoặc máy chủ phản hồi thất bại (Error)
     if (error) return (
       <div className="col-span-full py-20 text-center">
         <p className="font-serif text-2xl text-[#182019]">Unable to load products.</p>
         <p className="mt-2 text-xs text-[#68736b]">{error}</p>
-        <button onClick={() => window.location.reload()} className="mt-6 border border-[#182019] px-6 py-3 text-[10px] uppercase tracking-[.16em]">Retry</button>
+        <button
+          onClick={handleRetry}
+          className="mt-6 border border-[#182019] px-6 py-3 text-[10px] uppercase tracking-[.16em] transition hover:bg-[#182019] hover:text-white"
+        >
+          Retry
+        </button>
       </div>
     )
+
+    // 3. Trạng thái danh sách rỗng (Empty state)
     if (items.length === 0) return (
       <div className="col-span-full py-20 text-center">
         <ShoppingBag className="mx-auto text-[#8fbc8f]" size={35} />
         <p className="mt-5 font-serif text-3xl">No products found.</p>
+        <p className="mt-2 text-xs text-[#68736b]">
+          {activeCategory === 'SETS'
+            ? 'The SETS collection is currently being curated.'
+            : 'No items match the selected category.'}
+        </p>
       </div>
     )
-    return <>{items.map((p) => <ProductCard key={p.id} product={p} onOpen={() => { setSelected(p); go('detail') }} onAdd={() => add(p.id)} />)}</>
+
+    // 4. Trạng thái thành công: hiển thị danh sách thẻ sản phẩm
+    return <>{items.map((p) => <ProductCard key={p.id} product={p} onOpen={() => openDetail(p)} onAdd={() => add(p.id)} />)}</>
   }
 
 
@@ -167,8 +367,147 @@ export default function Storefront({ initialView = 'home' }: { initialView?: Sto
     </>}
 
 
-    {view === 'products' && <main className="mx-auto max-w-[1440px] px-5 py-10 lg:px-10 lg:py-14"><PageHeading eyebrow="The collection" title="Find your moment." /><div className="mb-9 flex gap-2 overflow-x-auto pb-2">{categories.map((c) => <button key={c} onClick={() => setActiveCategory(c)} className={`shrink-0 rounded-full border px-5 py-2 text-[10px] uppercase tracking-[.14em] transition ${activeCategory === c ? 'border-[#8fbc8f] bg-[#d8f3dc]' : 'border-[#d8ddd7] bg-white'}`}>{c}</button>)}</div><div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 lg:gap-5"><ProductsGrid items={filtered} /></div></main>}
-    {view === 'detail' && selected && <main className="mx-auto max-w-[1180px] px-5 py-8 lg:px-10 lg:py-14"><button onClick={() => go('products')} className="mb-8 flex items-center gap-2 text-[10px] uppercase tracking-[.15em]"><ArrowLeft size={15} /> Back to collection</button><div className="grid gap-8 lg:grid-cols-2"><img src={selected.image} alt={selected.name} className="aspect-[4/5] w-full object-cover" /><div className="flex flex-col justify-center"><p className="text-[10px] uppercase tracking-[.22em] text-[#8fbc8f]">{selected.brand}</p><p className="mt-2 text-[10px] uppercase tracking-[.16em] text-[#68736b]">{selected.category}</p><h1 className="mt-3 font-serif text-5xl">{selected.name}</h1><p className="mt-4 text-lg">${selected.price.toFixed(2)}</p><p className="mt-7 max-w-md text-sm leading-7 text-[#5e675f]">{selected.description}</p><div className="mt-8 border-y border-[#dbe4dc] py-5 text-xs"><span className="text-[#68736b]">Color</span><strong className="ml-10">{selected.color}</strong></div><button onClick={() => add(selected.id)} className="mt-7 flex w-full items-center justify-center gap-3 bg-[#8fbc8f] py-4 text-[11px] uppercase tracking-[.15em]">Add to bag <ShoppingBag size={16} /></button><button onClick={() => go('cart')} className="mt-3 w-full border border-[#1d241f] py-4 text-[11px] uppercase tracking-[.15em]">View bag ({count})</button></div></div></main>}
+    {view === 'products' && (
+      <main className="mx-auto max-w-[1440px] px-5 py-10 lg:px-10 lg:py-14">
+        <PageHeading eyebrow="The collection" title="Find your moment." />
+        <div className="mb-9 flex gap-2 overflow-x-auto pb-2">
+          {CATEGORIES.map((c) => (
+            <button
+              key={c}
+              onClick={() => handleSelectCategory(c)}
+              className={`shrink-0 rounded-full border px-5 py-2 text-[10px] uppercase tracking-[.14em] transition ${
+                activeCategory === c ? 'border-[#8fbc8f] bg-[#d8f3dc]' : 'border-[#d8ddd7] bg-white'
+              }`}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 lg:gap-5">
+          <ProductsGrid items={paginatedProducts} />
+        </div>
+
+        {/* Thanh phân trang sản phẩm theo danh mục hiện tại */}
+        {!loading && !error && filtered.length > 0 && totalCategoryPages > 1 && (
+          <div className="mt-12 flex items-center justify-center gap-2">
+            <button
+              onClick={() => {
+                setCurrentPage((prev) => Math.max(1, prev - 1))
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+              disabled={currentPage <= 1}
+              className="flex items-center gap-1 border border-[#d8ddd7] px-4 py-2 text-[10px] uppercase tracking-[.15em] transition hover:border-[#182019] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <ArrowLeft size={13} /> Prev
+            </button>
+
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalCategoryPages }, (_, i) => i + 1).map((pageNum) => (
+                <button
+                  key={pageNum}
+                  onClick={() => {
+                    setCurrentPage(pageNum)
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }}
+                  className={`min-w-9 px-3 py-2 text-xs transition ${
+                    currentPage === pageNum
+                      ? 'bg-[#182019] font-medium text-white'
+                      : 'border border-[#d8ddd7] text-[#182019] hover:border-[#182019]'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => {
+                setCurrentPage((prev) => Math.min(totalCategoryPages, prev + 1))
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+              disabled={currentPage >= totalCategoryPages}
+              className="flex items-center gap-1 border border-[#d8ddd7] px-4 py-2 text-[10px] uppercase tracking-[.15em] transition hover:border-[#182019] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Next <ArrowRight size={13} />
+            </button>
+          </div>
+        )}
+      </main>
+    )}
+
+    {view === 'detail' && (
+      detailLoading ? (
+        <main className="mx-auto max-w-[1180px] px-5 py-24 text-center">
+          <div className="mx-auto mb-4 size-8 animate-spin rounded-full border-2 border-[#8fbc8f] border-t-transparent" />
+          <p className="text-[11px] uppercase tracking-[.15em] text-[#68736b]">Loading piece details…</p>
+        </main>
+      ) : detailError ? (
+        <main className="mx-auto max-w-[1180px] px-5 py-24 text-center">
+          <p className="font-serif text-2xl text-[#182019]">Unable to load piece.</p>
+          <p className="mt-2 text-xs text-[#68736b]">{detailError}</p>
+          <div className="mt-6 flex justify-center gap-4">
+            <button
+              onClick={() => setDetailRetryKey((k) => k + 1)}
+              className="border border-[#182019] px-6 py-3 text-[10px] uppercase tracking-[.16em] transition hover:bg-[#182019] hover:text-white"
+            >
+              Retry
+            </button>
+            <button
+              onClick={() => go('products')}
+              className="bg-[#182019] px-6 py-3 text-[10px] uppercase tracking-[.16em] text-white"
+            >
+              Back to collection
+            </button>
+          </div>
+        </main>
+      ) : selected ? (
+        <main className="mx-auto max-w-[1180px] px-5 py-8 lg:px-10 lg:py-14">
+          <button onClick={() => go('products')} className="mb-8 flex items-center gap-2 text-[10px] uppercase tracking-[.15em]">
+            <ArrowLeft size={15} /> Back to collection
+          </button>
+          <div className="grid gap-8 lg:grid-cols-2">
+            <img src={selected.image} alt={selected.name} className="aspect-[4/5] w-full object-cover" />
+            <div className="flex flex-col justify-center">
+              <p className="text-[10px] uppercase tracking-[.22em] text-[#8fbc8f]">{selected.brand}</p>
+              <p className="mt-2 text-[10px] uppercase tracking-[.16em] text-[#68736b]">{selected.category}</p>
+              <h1 className="mt-3 font-serif text-5xl">{selected.name}</h1>
+              <div className="mt-4 flex items-baseline gap-3">
+                <p className="text-xl font-medium">${selected.price.toFixed(2)}</p>
+                {selected.salePrice !== undefined && selected.salePrice > 0 && selected.salePrice < selected.price && (
+                  <p className="text-sm text-[#8f6f5d] line-through">${selected.salePrice.toFixed(2)}</p>
+                )}
+              </div>
+              <p className="mt-7 max-w-md text-sm leading-7 text-[#5e675f]">{selected.description}</p>
+              <div className="mt-8 border-y border-[#dbe4dc] py-5 text-xs flex flex-col gap-3">
+                <div className="flex justify-between">
+                  <span className="text-[#68736b]">Color</span>
+                  <strong>{selected.color || 'Standard'}</strong>
+                </div>
+                {selected.quantity !== undefined && (
+                  <div className="flex justify-between">
+                    <span className="text-[#68736b]">Availability</span>
+                    <strong>{selected.quantity > 0 ? `${selected.quantity} in stock` : 'Out of stock'}</strong>
+                  </div>
+                )}
+              </div>
+              <button onClick={() => add(selected.id)} className="mt-7 flex w-full items-center justify-center gap-3 bg-[#8fbc8f] py-4 text-[11px] uppercase tracking-[.15em]">
+                Add to bag <ShoppingBag size={16} />
+              </button>
+              <button onClick={() => go('cart')} className="mt-3 w-full border border-[#1d241f] py-4 text-[11px] uppercase tracking-[.15em]">
+                View bag ({count})
+              </button>
+            </div>
+          </div>
+        </main>
+      ) : (
+        <main className="mx-auto max-w-[1180px] px-5 py-24 text-center">
+          <p className="font-serif text-2xl text-[#182019]">No piece selected.</p>
+          <button onClick={() => go('products')} className="mt-6 border border-[#182019] px-6 py-3 text-[10px] uppercase tracking-[.16em]">
+            Back to collection
+          </button>
+        </main>
+      )
+    )}
     {view === 'cart' && <CartView items={cartItems} cart={cart} subtotal={subtotal} change={change} go={go} />}
     {view === 'payment' && <PaymentView items={cartItems} cart={cart} subtotal={subtotal} go={go} />}
     {(view === 'login' || view === 'register') && <AuthView mode={view} go={go} />}
